@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=ZED Virtual Stereo Recorder
+Comment=Record both calibrated ZED X One cameras to one synchronized SVO2
+Exec=gnome-terminal --title=ZED-Virtual-Stereo-Recorder -- @REPO_ROOT@/scripts/record_virtual_stereo.sh
+Icon=camera-video
+Terminal=false
+Categories=AudioVideo;Video;
+StartupNotify=true

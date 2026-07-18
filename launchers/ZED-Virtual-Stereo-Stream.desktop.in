@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=ZED Virtual Stereo Stream
+Comment=Start calibrated dual ZED X One stream on 127.0.0.1:34000
+Exec=gnome-terminal --title=ZED-Virtual-Stereo-Stream -- @REPO_ROOT@/scripts/start_virtual_stereo_stream.sh
+Icon=camera-video
+Terminal=false
+Categories=AudioVideo;Video;
+StartupNotify=true

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=ZED Media Server
+Comment=Configure dual ZED X One virtual stereo streams
+Exec=/usr/local/bin/ZED_Media_Server
+Icon=camera-video
+Terminal=false
+Categories=AudioVideo;Video;
+StartupNotify=true

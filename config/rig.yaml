@@ -1,0 +1,43 @@
+snapshot_date: 2026-07-17
+host:
+  model: NVIDIA Jetson Orin Nano Engineering Reference Developer Kit Super
+  architecture: aarch64
+  ubuntu: 22.04.5 LTS
+  jetson_linux: 36.5.0
+  kernel: 5.15.185-tegra
+  zed_sdk: 5.4.0
+  cuda_reported_by_zed: 12.6.68
+capture:
+  board: ZED Link Capture Duo
+  transport: GMSL
+cameras:
+  left:
+    model: ZED X One GS
+    serial: 304467158
+    observed_i2c: /dev/i2c-9
+    observed_id: 0
+    observed_port: 1
+  right:
+    model: ZED X One GS
+    serial: 306605936
+    observed_i2c: /dev/i2c-10
+    observed_id: 1
+    observed_port: 2
+virtual_stereo:
+  serial: 116863460
+  width: 1920
+  height: 1200
+  fps: 15
+  media_server_port: 34000
+calibration:
+  checkerboard_inner_corners: [9, 6]
+  square_size_mm: 93.0
+  captured_pairs: 15
+  detected_pairs: 13
+  rejected_outliers: 1
+  used_pairs: 12
+  baseline_mm: 851.810
+  reprojection_rms_px:
+    left: 0.14
+    right: 0.14
+    stereo: 0.20
