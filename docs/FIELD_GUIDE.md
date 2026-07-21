@@ -207,6 +207,21 @@ Errors such as `FALCON_ERROR`, `IoctlFailed`, or a camera reboot failing in stat
 
 ## Recommended field recording: direct virtual-stereo recorder
 
+When an Ubuntu viewing workstation is available on the same LAN, the preferred
+combined view-and-record workflow is the remote field console:
+
+```bash
+cd /path/to/zed-x-one-rig
+./scripts/zed_field_console.sh --jetson zed-jetson
+```
+
+It starts in view-only mode. Use `r` to start lossless recording, `s` to
+finalize/validate/save, `i` for status, `v` to reopen RViz, and `q` for complete
+safe shutdown. One-time SSH setup, disconnect recovery, and offline operation
+are documented in `docs/FIELD_CONSOLE.md`.
+
+For standalone recording without the remote view, use the direct recorder.
+
 Use the application named **ZED Virtual Stereo Recorder** from the desktop application menu. It opens the two cameras as calibrated virtual stereo serial `116863460` and starts recording immediately in reliable headless mode. This route does **not** use Media Server, does **not** need sudo, and does **not** need internet.
 
 The equivalent terminal command is:
@@ -231,19 +246,11 @@ During recording:
 
 Do not use the recorder's experimental `--preview` option in the field. On this Jetson, OpenCV/GTK preview activity while lossless SDK recording is enabled can produce a header-only SVO2 with no readable frame index. Use headless recording, then inspect the finalized SVO2 in ZED Explorer or ZED Depth Viewer. The GTK message `Failed to load module "canberra-gtk-module"` is harmless by itself. The recorder may also report that the SDK recording pipeline has not accepted an initial frame yet; it continues through transient startup events and stops only if the SDK rejects recording frames continuously for five seconds. A valid session should show increasing `ingested` and `encoded` counts before it is stopped.
 
-Copy/paste recording profiles:
+Copy/paste proven recording command:
 
 ```bash
-# Recommended smaller field recording
-/home/dusty/workspace/terraforming_mars/zed-x-one-rig/scripts/record_virtual_stereo.sh --h264
-
 # Maximum fidelity for quantitative depth work; approximately 3.4 GB/minute
 /home/dusty/workspace/terraforming_mars/zed-x-one-rig/scripts/record_virtual_stereo.sh --lossless
-
-# One-minute H.264 recording with an explicit filename
-/home/dusty/workspace/terraforming_mars/zed-x-one-rig/scripts/record_virtual_stereo.sh \
-  --h264 --frames 900 \
-  --output /home/dusty/Videos/ZED/field_test.svo2
 ```
 
 Run the following for the complete option list and the same copy/paste examples:
@@ -252,7 +259,12 @@ Run the following for the complete option list and the same copy/paste examples:
 /home/dusty/workspace/terraforming_mars/zed-x-one-rig/scripts/record_virtual_stereo.sh --help
 ```
 
-Other supported controls are `--h265`, `--output /path/name.svo2`, `--no-preview`, and `--frames N`. The normal launcher is already headless, so `--no-preview` is explicit but optional. Do not use `--preview` in the field.
+Other implemented low-level controls are `--h264`, `--h265`,
+`--output /path/name.svo2`, `--no-preview`, and `--frames N`. The normal launcher
+is already headless, so `--no-preview` is explicit but optional. Do not use
+`--preview` in the field. H.264 and H.265 did not produce a valid file in the
+2026-07-21 bounded tests on this exact virtual pair; treat them as experimental,
+not field-supported presets.
 
 The corrected direct recorder was validated on this Jetson on 2026-07-17 using `ZED_SVO_Editor -inf`. A bounded headless lossless test produced a readable SVO2 v2 containing 46 indexed frames at 1920×1200, 15 FPS, with virtual serial `116863460`. It was approximately 169 MB, or roughly 56 MB/s; the actual rate varies with image content. Budget storage conservatively for long lossless sessions. The recorder produces one synchronized stereo SVO2 containing both camera streams. The installed `SN116863460.conf` associates the rig calibration with the virtual camera; NEURAL depth is computed from the stereo images during playback rather than baked into the file.
 
@@ -301,7 +313,7 @@ These applications are installed locally and work without internet:
 /usr/local/bin/ZED_Studio
 ```
 
-Three custom desktop application launchers are installed for field use:
+Four custom desktop application launchers are installed for field use:
 
 - **ZED Virtual Stereo Recorder**: recommended no-sudo synchronized SVO2 recorder.
 - **ZED Virtual Stereo Stream**: starts the exact Media Server CLI configuration on port `34000`; it may ask for the Jetson sudo password.
@@ -317,16 +329,25 @@ the calibrated pair and computes NEURAL depth. The remote Ubuntu 22.04
 workstation receives standard ROS images, depth, and point clouds and does not
 need the ZED SDK or CUDA.
 
-Start live publication on the Jetson:
+Preferred one-command launch from the viewing workstation:
 
 ```bash
-cd /home/dusty/workspace/terraforming_mars/zed-x-one-rig
-./scripts/start_ros2_virtual_stereo.sh
+cd /path/to/zed-x-one-rig
+./scripts/zed_field_console.sh --jetson zed-jetson
 ```
 
-On the remote workstation, from its copy of this repository:
+It starts in view-only mode and provides `r`, `s`, `i`, `v`, `h`, and `q`
+controls. See `docs/FIELD_CONSOLE.md` for one-time SSH setup and recovery.
+
+Manual diagnosis remains possible by starting these in order on the Jetson and
+then the workstation:
 
 ```bash
+# Jetson
+cd /home/dusty/workspace/terraforming_mars/zed-x-one-rig
+./scripts/start_ros2_virtual_stereo.sh
+
+# Workstation
 ./scripts/start_ros2_rviz.sh
 ```
 
@@ -344,9 +365,10 @@ keeps the already reduced point cloud as standard `PointCloud2`. The complete
 one-time installation, offline cache, discovery, bandwidth, and recovery
 procedure is in `docs/ROS2_REMOTE_VIEWING.md`.
 
-Stop the foreground ROS launch with `Ctrl+C` and wait for shutdown before
-starting direct recording, calibration, Media Server, or another ZED viewer.
-The launchers refuse an existing camera owner and do not terminate it.
+For the console, use `q` and wait for camera-release confirmation before
+starting calibration, Media Server, or another ZED viewer. For the manual path,
+stop the foreground ROS launch with `Ctrl+C`. The launchers refuse an existing
+camera owner and do not terminate it.
 
 ## Media Server, live Depth Viewer, and GUI recording fallback
 
@@ -398,7 +420,7 @@ To inspect live depth, launch `ZED_Depth_Viewer`, connect its network input to `
 - The stereo images can be retrieved individually as left/right views or together as a side-by-side view during playback.
 - It also records timestamps and supported camera metadata.
 - Standard recording does not bake the displayed NEURAL point cloud into the file. The SDK re-runs depth estimation from the recorded stereo pair during playback, so a different depth mode can be selected later.
-- Compression applies to the recorded camera images. Prefer a lossless SVO mode when storage permits and the recording will be used for calibration or quantitative depth validation. H.264/H.265 lossy modes are much smaller but can introduce image artifacts that affect subsequently computed depth.
+- Compression applies to the recorded camera images. This rig's proven path is lossless. H.264/H.265 would be smaller but currently reject frames on this virtual pair and are not field-supported.
 
 The direct reprojection-viewer command is preferable for the first local NEURAL-depth validation because it avoids the Media Server streaming layer.
 

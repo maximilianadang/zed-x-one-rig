@@ -7,23 +7,17 @@ it is not baked into the recording.
 
 ## Copy/paste commands
 
-Recommended smaller H.264 field recording:
-
-```bash
-/home/dusty/workspace/terraforming_mars/zed-x-one-rig/scripts/record_virtual_stereo.sh --h264
-```
-
-Maximum-fidelity lossless recording:
+Proven maximum-fidelity recording:
 
 ```bash
 /home/dusty/workspace/terraforming_mars/zed-x-one-rig/scripts/record_virtual_stereo.sh --lossless
 ```
 
-One minute at 15 FPS:
+One minute at 15 FPS with an explicit filename:
 
 ```bash
 /home/dusty/workspace/terraforming_mars/zed-x-one-rig/scripts/record_virtual_stereo.sh \
-  --h264 --frames 900 \
+  --lossless --frames 900 \
   --output /home/dusty/Videos/ZED/field_test.svo2
 ```
 
@@ -41,14 +35,15 @@ Complete built-in help:
 --preview       Experimental and not reliable on this Jetson
 --no-preview    Headless recording; this is the default
 --lossless      PNG/ZSTD; maximum fidelity and largest files
---h264          H.264 lossy; much smaller and may affect depth
---h265          H.265 lossy; requires working encoder support
+--h264          Experimental H.264; not validated on this virtual pair
+--h265          Experimental H.265; not validated on this virtual pair
 -h, --help      Full help and copy/paste commands
 ```
 
-The current recorder is fixed at 1920x1200 and 15 FPS. The installed SDK can
-accept explicit H.264/H.265 recording bitrates, but this recorder revision does
-not yet expose a bitrate CLI option.
+The current recorder is fixed at 1920x1200 and 15 FPS. Bounded tests on
+2026-07-21 found that H.264 and H.265 start requests were accepted but every
+frame was rejected on this virtual-stereo path. Use lossless for field data.
+The remote field console therefore exposes lossless only.
 
 ## Storage
 
@@ -56,10 +51,13 @@ The measured lossless rate on this rig was approximately 56 MB/s, or 3.4
 GB/minute. Actual lossless size depends on scene content. Lossy sizes depend on
 the SDK-selected encoder bitrate.
 
-Lossy compression changes the left and right images used to compute depth
-during playback. Prefer lossless for calibration and quantitative validation.
-Validate a chosen lossy mode against a short lossless reference before relying
-on it for measurements.
+Lossy compression would change the left and right images used to compute depth
+during playback. Do not rely on the low-level lossy switches unless a future
+rig-specific test produces a finalized, indexed file and successful replay.
+
+For simultaneous RViz viewing and recording, use the workstation-side field
+console documented in `docs/FIELD_CONSOLE.md`. It records lossless native stereo
+through the already-open ROS wrapper while ROS publishes the reduced preview.
 
 ## Safe shutdown and validation
 

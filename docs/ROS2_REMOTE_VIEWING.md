@@ -89,7 +89,22 @@ offline/ros2/remote-amd64/debs/
 For offline field use, install the receiver while online before deployment or
 copy its populated package cache alongside the repository.
 
-## Live remote viewing
+## Preferred live field console
+
+After the one-time receiver and SSH setup in
+[FIELD_CONSOLE.md](FIELD_CONSOLE.md), run this on the workstation:
+
+```bash
+cd /path/to/zed-x-one-rig
+./scripts/zed_field_console.sh --jetson zed-jetson
+```
+
+It starts or attaches to one named transient Jetson session, proves the ROS
+topics are visible, opens RViz, and supplies explicit lossless record/finalize
+keys. Startup is view-only. A control or RViz failure leaves the independent
+Jetson session intact for reconnection.
+
+## Manual live remote viewing fallback
 
 On the Jetson:
 
@@ -232,16 +247,21 @@ sudo ufw allow from 192.168.8.0/24
 Discovery failure is a network/DDS problem. Do not restart Argus, reinstall the
 GMSL driver, or change calibration to solve it.
 
-## Recording remains separate
+## Recording while viewing
 
-ROS 2 does not replace the proven master recorder. Stop ROS live viewing, wait
-for camera release, then record:
+The field console invokes the pinned wrapper's recording service on the Jetson,
+so the already-open wrapper remains the only camera owner. Press `r` to begin a
+native synchronized lossless SVO2 and `s` to stop, finalize, validate, and save
+it. The full contract and recovery behavior are in
+[FIELD_CONSOLE.md](FIELD_CONSOLE.md).
 
-```bash
-./scripts/record_virtual_stereo.sh --h264
-```
+Only lossless is exposed. H.264 and H.265 start requests were accepted by the
+wrapper but rejected every frame in bounded tests on this exact virtual pair.
+The ROS preview remains reduced for LAN bandwidth; the SVO2 itself stores the
+native 1920x1200/15 FPS synchronized stereo inputs.
 
-Use lossless recording when the images will support quantitative depth work:
+For recording without remote viewing, stop the field session and use the
+proven direct lossless fallback:
 
 ```bash
 ./scripts/record_virtual_stereo.sh --lossless

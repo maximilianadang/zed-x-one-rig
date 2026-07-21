@@ -77,4 +77,7 @@ fi
 
 echo
 echo "Remote viewer installed. No ZED SDK or CUDA was installed."
-echo "Run: $ROOT/scripts/start_ros2_rviz.sh"
+echo "One-command field console:"
+echo "  $ROOT/scripts/zed_field_console.sh --jetson dusty@ubuntu.local"
+echo "Manual RViz-only fallback:"
+echo "  $ROOT/scripts/start_ros2_rviz.sh"

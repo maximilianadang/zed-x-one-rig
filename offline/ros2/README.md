@@ -22,3 +22,9 @@ Populate each cache on the matching machine while internet is available:
 Copy the populated cache with the repository for field use. Do not exchange
 the AArch64 and x86_64 directories. The corresponding installer `--offline-dir`
 option installs only from the supplied `.deb` files.
+
+The Jetson cannot populate the x86_64 workstation cache from its ARM Ubuntu
+package sources. An empty `remote-amd64/debs/` directory means the receiving
+workstation still needs its one-time online install before deployment; source
+files alone are not an offline substitute for those architecture-specific
+packages.

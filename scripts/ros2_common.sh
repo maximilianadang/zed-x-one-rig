@@ -80,3 +80,21 @@ zed_ros_print_network_environment() {
   echo "RMW_IMPLEMENTATION=$RMW_IMPLEMENTATION"
   echo "CYCLONEDDS_URI=$CYCLONEDDS_URI"
 }
+
+zed_ros_user_manager_persistent() {
+  local user sessions session remote active
+  user="$(id -un)"
+  if [[ "$(loginctl show-user "$user" -p Linger --value 2>/dev/null)" == yes ]]; then
+    return 0
+  fi
+
+  sessions="$(loginctl show-user "$user" -p Sessions --value 2>/dev/null || true)"
+  for session in $sessions; do
+    remote="$(loginctl show-session "$session" -p Remote --value 2>/dev/null || true)"
+    active="$(loginctl show-session "$session" -p Active --value 2>/dev/null || true)"
+    if [[ "$remote" == no && "$active" == yes ]]; then
+      return 0
+    fi
+  done
+  return 1
+}

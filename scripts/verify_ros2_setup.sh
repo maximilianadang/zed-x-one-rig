@@ -59,9 +59,22 @@ if ((failures == 0)); then
   if ros2 pkg prefix rviz2 >/dev/null 2>&1; then pass "RViz2"; else warn "RViz2 not installed on this host"; fi
 fi
 
-for script in start_ros2_virtual_stereo.sh play_svo_ros2.sh start_ros2_rviz.sh; do
+for script in start_ros2_virtual_stereo.sh play_svo_ros2.sh start_ros2_rviz.sh \
+  zed_field_session.sh zed_field_console.sh; do
   if [[ -x "$ROOT/scripts/$script" ]]; then pass "executable: scripts/$script"; else fail "not executable: scripts/$script"; fi
 done
+
+if [[ -r "$ROOT/config/field_console.env" ]]; then
+  pass "field-console configuration"
+else
+  fail "missing config/field_console.env"
+fi
+
+if zed_ros_user_manager_persistent; then
+  pass "field session survives SSH disconnect (linger or active local session)"
+else
+  warn "field session needs: sudo loginctl enable-linger $(id -un)"
+fi
 
 owners="$(zed_ros_camera_owners)"
 if [[ -z "$owners" ]]; then

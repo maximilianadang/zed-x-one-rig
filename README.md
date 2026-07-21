@@ -57,30 +57,44 @@ The installer does not restart camera services and does not touch the two
 physical factory calibrations unless explicitly given
 `--restore-factory-calibrations`.
 
-## Record synchronized stereo
+## One-command remote view and recording
 
-Recommended smaller field recording:
-
-```bash
-/home/dusty/workspace/terraforming_mars/zed-x-one-rig/scripts/record_virtual_stereo.sh --h264
-```
-
-Maximum fidelity for calibration or quantitative depth work:
+From the Ubuntu 22.04 viewing workstation, one command starts or attaches to
+the Jetson's calibrated ROS session, opens RViz, and provides recording keys:
 
 ```bash
-/home/dusty/workspace/terraforming_mars/zed-x-one-rig/scripts/record_virtual_stereo.sh --lossless
+cd /path/to/zed-x-one-rig
+./scripts/zed_field_console.sh --jetson zed-jetson
 ```
 
-One-minute H.264 recording with an explicit filename:
+The console starts in view-only mode. Press `r` to start lossless recording,
+`s` to finalize/validate/save, `i` for status, `v` to reopen RViz, and `q` for
+a complete safe shutdown. Recordings are synchronized full-resolution SVO2
+files on the Jetson, not the reduced ROS preview.
+
+The default target can also be supplied directly when mDNS is unambiguous:
+
+```bash
+./scripts/zed_field_console.sh --jetson dusty@ubuntu.local
+```
+
+See [docs/FIELD_CONSOLE.md](docs/FIELD_CONSOLE.md) for one-time SSH setup,
+offline operation, recovery semantics, and network checks.
+
+## Direct synchronized recording fallback
+
+When no remote view is needed, the proven direct fallback is lossless:
 
 ```bash
 /home/dusty/workspace/terraforming_mars/zed-x-one-rig/scripts/record_virtual_stereo.sh \
-  --h264 --frames 900 \
-  --output /home/dusty/Videos/ZED/field_test.svo2
+  --lossless
 ```
 
-Show every currently implemented recorder option and the same copy/paste
-examples:
+The H.264/H.265 options exist in the low-level recorder, but neither produced
+a valid recording in bounded tests on this exact virtual-stereo path. Do not
+use them for field data unless a future rig-specific test validates them.
+
+Show every low-level recorder option:
 
 ```bash
 ./scripts/record_virtual_stereo.sh --help
@@ -104,16 +118,17 @@ One-time Jetson setup:
 ./scripts/install_ros2_jetson.sh
 ```
 
-Start live publication on the Jetson:
+Preferred one-command control from the workstation:
+
+```bash
+./scripts/zed_field_console.sh --jetson zed-jetson
+```
+
+Manual launch remains available for diagnosis. Start publication on the Jetson,
+then RViz from the remote workstation:
 
 ```bash
 ./scripts/start_ros2_virtual_stereo.sh
-```
-
-Start RViz2 from a copy of this repository on the remote workstation:
-
-```bash
-./scripts/install_ros2_remote.sh   # one time, while online
 ./scripts/start_ros2_rviz.sh
 ```
 

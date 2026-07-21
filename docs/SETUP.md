@@ -123,8 +123,9 @@ and installs the **ZED ROS 2 Virtual Stereo** desktop launcher. It does not
 modify JetPack/L4T, the GMSL driver, ZED SDK, calibration, camera daemons, or
 boot services.
 
-The matching Ubuntu 22.04 remote workstation setup and operating commands are
-in [ROS2_REMOTE_VIEWING.md](ROS2_REMOTE_VIEWING.md).
+The matching Ubuntu 22.04 remote workstation setup is in
+[ROS2_REMOTE_VIEWING.md](ROS2_REMOTE_VIEWING.md). The one-command SSH/RViz/live
+recording workflow and key setup are in [FIELD_CONSOLE.md](FIELD_CONSOLE.md).
 
 ## 7. First depth test
 
