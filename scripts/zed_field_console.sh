@@ -188,6 +188,33 @@ print_resolution() {
   echo "  Profile:  $REMOTE_PROFILE"
 }
 
+ssh_preflight() {
+  local output remote_host remote_addresses
+  if ! output="$(remote_shell hostname 2>&1)"; then
+    printf '%s\n' "$output" >&2
+    die "Cannot SSH noninteractively to $JETSON; verify its address, host key, and SSH key"
+  fi
+  remote_host="$(head -n1 <<<"$output")"
+  remote_addresses="$(remote_shell hostname -I 2>/dev/null || true)"
+  echo "SSH connected"
+  echo "  Remote host: ${remote_host:-unknown}"
+  echo "  Remote IPs:  ${remote_addresses:-not reported}"
+
+  if ! output="$(remote_shell test -r /usr/local/zed/settings/SN116863460.conf 2>&1)"; then
+    printf '%s\n' "$output" >&2
+    die "SSH reached $remote_host, but it is not the configured ZED rig Jetson (SN116863460 calibration is absent)"
+  fi
+
+  if ! output="$(remote_shell test -x "$REMOTE_ROOT/scripts/zed_field_session.sh" 2>&1)"; then
+    printf '%s\n' "$output" >&2
+    echo "SSH is working and reached $remote_host." >&2
+    echo "The missing path is on that remote host, not on this viewing computer:" >&2
+    echo "  $REMOTE_ROOT/scripts/zed_field_session.sh" >&2
+    die "Jetson repository path is wrong, stale, or not executable; pass --remote-root with the Jetson's repository path"
+  fi
+  echo "  Jetson tool: $REMOTE_ROOT/scripts/zed_field_session.sh"
+}
+
 machine_status() {
   remote_session status --machine
 }
@@ -268,8 +295,7 @@ fi
 command -v ssh >/dev/null || die "ssh is not installed on this viewing computer"
 mkdir -p "$RUNTIME_BASE"
 chmod 0700 "$RUNTIME_BASE"
-remote_shell test -x "$REMOTE_ROOT/scripts/zed_field_session.sh" ||
-  die "SSH preflight failed, or the Jetson helper is not executable under $REMOTE_ROOT"
+ssh_preflight
 
 case "$ACTION" in
   status) remote_session status; close_ssh_master; exit 0 ;;

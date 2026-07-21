@@ -22,6 +22,17 @@ the correct Jetson on that LAN:
 ./scripts/zed_field_console.sh --jetson dusty@ubuntu.local
 ```
 
+On the current AsteraMesh lease, the fully explicit form is:
+
+```bash
+./scripts/zed_field_console.sh \
+  --jetson dusty@192.168.20.45 \
+  --remote-root /home/dusty/workspace/terraforming_mars/zed-x-one-rig
+```
+
+`--remote-root` always names a directory on the Jetson. It is not the directory
+where the command is being run on the viewing computer.
+
 The console starts in **view-only** mode. It never starts recording merely
 because the camera or RViz is open.
 
@@ -161,6 +172,9 @@ Never kill the ROS wrapper while it reports an active recording. Use
 
 - **SSH/host-key failure:** control is unavailable. The Jetson session is not
   changed. Correct the hostname, route, key, or known-host discrepancy.
+- **SSH works but the helper is missing:** keep the local viewing-computer path
+  unchanged and pass the Jetson path explicitly with
+  `--remote-root /home/dusty/workspace/terraforming_mars/zed-x-one-rig`.
 - **SSH works but ROS topics are missing:** the camera may be fine. Check ROS
   domain 42, Cyclone DDS, workstation firewall, AP/client isolation, and LAN
   multicast. The console leaves the Jetson session running.
