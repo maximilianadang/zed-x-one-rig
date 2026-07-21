@@ -106,7 +106,27 @@ Expected:
 
 Run `./scripts/verify_setup.sh` again after installation.
 
-## 6. First depth test
+## 6. Install ROS 2 remote viewing
+
+ROS 2 is intentionally separate from the base rig installer. Provision the
+pinned Humble/ZED wrapper stack on the Jetson with:
+
+```bash
+./scripts/preflight_ros2.sh
+./scripts/install_ros2_jetson.sh
+./scripts/verify_ros2_setup.sh
+```
+
+The installer builds Stereolabs wrapper `v5.4.0` in
+`/home/dusty/zed_ros2_ws`, retains downloaded AArch64 packages for offline use,
+and installs the **ZED ROS 2 Virtual Stereo** desktop launcher. It does not
+modify JetPack/L4T, the GMSL driver, ZED SDK, calibration, camera daemons, or
+boot services.
+
+The matching Ubuntu 22.04 remote workstation setup and operating commands are
+in [ROS2_REMOTE_VIEWING.md](ROS2_REMOTE_VIEWING.md).
+
+## 7. First depth test
 
 Close anything holding either camera, then run:
 
@@ -117,7 +137,7 @@ Close anything holding either camera, then run:
 The rectified image window is the left-camera reference image. The 3D point
 cloud still uses synchronized images from both physical cameras.
 
-## 7. Recalibration
+## 8. Recalibration
 
 Recalibrate if either camera is moved or rotated relative to the other. The
 exact command and target definition are in [CALIBRATION.md](CALIBRATION.md).

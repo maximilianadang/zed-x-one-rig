@@ -18,3 +18,12 @@ ZED_Diagnostic_Results*.json
 core
 core.*
 *~
+
+# Generated ROS 2 workspaces, logs, and architecture-specific package caches.
+/ros2_ws/
+/log/
+/offline/ros2/*/debs/*.deb
+/offline/ros2/*/debs/lock
+/offline/ros2/*/debs/partial/
+/offline/ros2/*/installed-packages.txt
+!/vendor/ros2/*.deb

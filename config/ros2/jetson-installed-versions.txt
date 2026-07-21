@@ -1,0 +1,16 @@
+# Captured on the reference Jetson, 2026-07-21.
+# Format: Debian package<TAB>version<TAB>architecture
+ros-humble-compressed-depth-image-transport	2.5.5-1jammy.20260607.110354	arm64
+ros-humble-compressed-image-transport	2.5.5-1jammy.20260607.110500	arm64
+ros-humble-draco-point-cloud-transport	1.0.14-1jammy.20260626.190535	arm64
+ros-humble-image-transport-plugins	2.5.5-1jammy.20260607.141948	arm64
+ros-humble-point-cloud-transport	1.0.23-1jammy.20260626.185857	arm64
+ros-humble-point-cloud-transport-plugins	1.0.14-1jammy.20260626.191804	arm64
+ros-humble-rmw-cyclonedds-cpp	1.3.4-1jammy.20260605.112510	arm64
+ros-humble-ros-base	0.10.0-1jammy.20260607.150006	arm64
+ros-humble-ros-core	0.10.0-1jammy.20260607.124957	arm64
+ros-humble-rviz2	11.2.27-1jammy.20260613.002727	arm64
+ros-humble-zed-description	0.1.5-1jammy.20260613.004926	arm64
+ros-humble-zed-msgs	5.3.0-1jammy.20260605.131145	arm64
+ros-humble-zlib-point-cloud-transport	1.0.14-1jammy.20260626.190749	arm64
+ros-humble-zstd-point-cloud-transport	1.0.14-1jammy.20260626.190538	arm64

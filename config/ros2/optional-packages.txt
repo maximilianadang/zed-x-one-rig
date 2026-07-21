@@ -1,0 +1,4 @@
+# Installed when the pinned ROS repository provides them for Humble.
+ros-humble-draco-point-cloud-transport
+ros-humble-zlib-point-cloud-transport
+ros-humble-zstd-point-cloud-transport

@@ -60,15 +60,7 @@ if $RESTORE_FACTORY; then
 fi
 
 if $INSTALL_DESKTOP; then
-  APP_DIR="$HOME/.local/share/applications"
-  mkdir -p "$APP_DIR"
-  for template in "$ROOT"/launchers/*.desktop.in; do
-    target="$APP_DIR/$(basename "${template%.in}")"
-    sed "s|@REPO_ROOT@|$ROOT|g" "$template" >"$target"
-    chmod 0644 "$target"
-  done
-  update-desktop-database "$APP_DIR" 2>/dev/null || true
-  echo "Installed desktop launchers in $APP_DIR"
+  "$ROOT/scripts/install_desktop_launchers.sh"
 fi
 
 echo

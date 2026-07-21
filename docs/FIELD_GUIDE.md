@@ -1,6 +1,6 @@
 # Dual ZED X One GS Field Guide
 
-Last updated: 2026-07-17
+Last updated: 2026-07-21
 
 This guide is specific to the dual ZED X One GS rig on this Jetson Orin Nano with the ZED Link Capture Duo. It is designed to be usable without internet access.
 
@@ -306,8 +306,47 @@ Three custom desktop application launchers are installed for field use:
 - **ZED Virtual Stereo Recorder**: recommended no-sudo synchronized SVO2 recorder.
 - **ZED Virtual Stereo Stream**: starts the exact Media Server CLI configuration on port `34000`; it may ask for the Jetson sudo password.
 - **ZED Media Server**: opens the Media Server configuration GUI.
+- **ZED ROS 2 Virtual Stereo**: publishes rectified color, NEURAL depth, and a reduced colored point cloud to a same-LAN ROS 2 workstation.
 
 It is expected that this SDK installation did not originally show ZED Media Server in the desktop application menu. The executable was installed, but no `.desktop` launcher was supplied. The custom launcher fixes that discoverability issue.
+
+## Remote viewing without VNC
+
+The supported remote field path is ROS 2 Humble with RViz2. The Jetson opens
+the calibrated pair and computes NEURAL depth. The remote Ubuntu 22.04
+workstation receives standard ROS images, depth, and point clouds and does not
+need the ZED SDK or CUDA.
+
+Start live publication on the Jetson:
+
+```bash
+cd /home/dusty/workspace/terraforming_mars/zed-x-one-rig
+./scripts/start_ros2_virtual_stereo.sh
+```
+
+On the remote workstation, from its copy of this repository:
+
+```bash
+./scripts/start_ros2_rviz.sh
+```
+
+Replay the latest validated recording instead of opening live cameras:
+
+```bash
+./scripts/play_svo_ros2.sh \
+  /home/dusty/Videos/ZED/virtual_stereo_20260717_162826.svo2
+```
+
+The default ROS domain is `42`. Live and replay expose the same `/zed/zed_node`
+topics and use the same RViz configuration. The viewer launcher receives
+compressed color and compressed depth, expands them locally for RViz, and
+keeps the already reduced point cloud as standard `PointCloud2`. The complete
+one-time installation, offline cache, discovery, bandwidth, and recovery
+procedure is in `docs/ROS2_REMOTE_VIEWING.md`.
+
+Stop the foreground ROS launch with `Ctrl+C` and wait for shutdown before
+starting direct recording, calibration, Media Server, or another ZED viewer.
+The launchers refuse an existing camera owner and do not terminate it.
 
 ## Media Server, live Depth Viewer, and GUI recording fallback
 
@@ -337,12 +376,12 @@ For live use of ZED Depth Viewer, or for recording through ZED Explorer, use thi
 11. Click the **record icon** at the lower-left to start recording. Click it again to stop.
 12. Wait for recording finalization before closing Explorer or stopping Media Server. Verify that the resulting `.svo2` file is non-empty and can be reopened in Explorer.
 
-The Media Server sudo request is not an internet requirement. In the field:
-
-- With SSH access over the LAN, run the stream script in the SSH terminal and enter the sudo password there. Then use the GUI over RealVNC and connect it to `127.0.0.1:34000`.
-- With RealVNC alone, launch **ZED Virtual Stereo Stream** or run its script in a desktop terminal and enter the sudo password there.
-- A plain SSH session should run Media Server in CLI mode; do not try to open its GUI over SSH unless X11 forwarding is deliberately configured.
-- The direct **ZED Virtual Stereo Recorder** remains the simplest recording path when live Depth Viewer is not required.
+The Media Server sudo request is not an internet requirement. In the field, a
+plain SSH session can run Media Server in CLI mode and accept the local sudo
+password. Media Server remains a local compatibility path for ZED GUI tools;
+use the ROS 2 workflow above for remote color/depth/point-cloud viewing. The
+direct **ZED Virtual Stereo Recorder** remains the simplest recording path when
+live Depth Viewer is not required.
 
 Exact Media Server CLI command:
 

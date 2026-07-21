@@ -1,0 +1,7 @@
+# Required on the Ubuntu 22.04 remote workstation. No ZED SDK or CUDA.
+ros-humble-compressed-depth-image-transport
+ros-humble-compressed-image-transport
+ros-humble-image-transport-plugins
+ros-humble-rmw-cyclonedds-cpp
+ros-humble-ros-base
+ros-humble-rviz2

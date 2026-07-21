@@ -89,18 +89,56 @@ examples:
 Always stop with `Ctrl+C` and wait for `Finalizing SVO2` before removing power.
 Never hot-plug or reseat a GMSL/capture-board connection while streaming.
 
+## Remote viewing without VNC
+
+ROS 2 is the supported same-LAN remote viewing path. The Jetson computes
+NEURAL depth and publishes rectified color, registered depth, and a reduced
+colored point cloud. The supplied RViz profile selects compressed color and
+depth transports to keep LAN traffic bounded, then expands them locally for
+display. An Ubuntu 22.04 workstation uses RViz2 and does not need the ZED SDK
+or CUDA.
+
+One-time Jetson setup:
+
+```bash
+./scripts/install_ros2_jetson.sh
+```
+
+Start live publication on the Jetson:
+
+```bash
+./scripts/start_ros2_virtual_stereo.sh
+```
+
+Start RViz2 from a copy of this repository on the remote workstation:
+
+```bash
+./scripts/install_ros2_remote.sh   # one time, while online
+./scripts/start_ros2_rviz.sh
+```
+
+Replay a recording through the same remote display:
+
+```bash
+./scripts/play_svo_ros2.sh \
+  /home/dusty/Videos/ZED/virtual_stereo_20260717_162826.svo2
+```
+
+See [docs/ROS2_REMOTE_VIEWING.md](docs/ROS2_REMOTE_VIEWING.md) for installation,
+offline caches, field operation, discovery checks, and recovery.
+
 ## Repository contents
 
 ```text
 calibration/   Exact active virtual calibration and physical-camera backups
-config/        Rig manifest and ZED Media Server virtual-stereo configuration
-docs/          Setup, field operation, recorder, calibration, and depth notes
+config/        Rig, Media Server, and ROS 2/DDS configuration
+docs/          Setup, field operation, recorder, remote viewing, calibration, and depth notes
 launchers/     Desktop launcher templates installed by scripts/install.sh
 prebuilt/      AArch64 binaries built on the known-good Jetson software stack
 recorder/      Source for the custom synchronized virtual-stereo SVO2 recorder
 scripts/       Build, installation, verification, recording, and stream commands
 tools/         Offline SVO depth-analysis and overlay-video tools
-vendor/        Exact upstream ZED OpenCV calibration source snapshot
+vendor/        Exact upstream calibration source and pinned ROS 2 assets
 ```
 
 Recordings, generated images/videos, calibration capture frames, diagnostic

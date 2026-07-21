@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=ZED ROS 2 Virtual Stereo
+Comment=Publish calibrated dual ZED X One color, depth, and point cloud over LAN
+Exec=gnome-terminal --title=ZED-ROS2-Virtual-Stereo -- @REPO_ROOT@/scripts/start_ros2_virtual_stereo.sh
+Icon=camera-video
+Terminal=false
+Categories=AudioVideo;Video;Development;
+StartupNotify=true
