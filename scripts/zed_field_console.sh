@@ -21,7 +21,12 @@ RVIZ_READY="$RUNTIME_BASE/zed-field-rviz-$(id -u).ready"
 TTY_STATE=""
 FOOTER_DRAWN=false
 STATUS_TEXT="STATE=STARTING  RECORDING=UNKNOWN  RVIZ=closed"
+STATUS_STYLE="1;33"
 CONTROL_TEXT="Keys: r record | s stop/save | i inspect | v reopen RViz | h help | q safe quit"
+STATUS_INTERVAL=1
+PREV_RECORDING_PATH=""
+PREV_FILE_BYTES=0
+PREV_SAMPLE_EPOCH=0
 SSH_OPTIONS=(
   -n
   -o BatchMode=yes
@@ -107,8 +112,36 @@ draw_footer() {
   clear_footer
   status="$(fit_footer_line "$STATUS_TEXT")"
   controls="$(fit_footer_line "$CONTROL_TEXT")"
-  printf '\r\033[2K%s\n\033[2K%s' "$status" "$controls"
+  printf '\r\033[2K\033[%sm%s\033[0m\n\033[2K\033[2m%s\033[0m' \
+    "$STATUS_STYLE" "$status" "$controls"
   FOOTER_DRAWN=true
+}
+
+format_duration() {
+  local total="$1" hours minutes seconds
+  ((total >= 0)) || total=0
+  hours=$((total / 3600))
+  minutes=$(((total % 3600) / 60))
+  seconds=$((total % 60))
+  printf '%02d:%02d:%02d' "$hours" "$minutes" "$seconds"
+}
+
+format_data_size() {
+  local bytes="$1" scaled
+  if ((bytes >= 1000000000)); then
+    scaled=$((bytes / 10000000))
+    printf '%d.%02d GB' "$((scaled / 100))" "$((scaled % 100))"
+  else
+    scaled=$((bytes / 100000))
+    printf '%d.%d MB' "$((scaled / 10))" "$((scaled % 10))"
+  fi
+}
+
+format_data_rate() {
+  local bytes_per_second="$1" scaled
+  ((bytes_per_second >= 0)) || bytes_per_second=0
+  scaled=$((bytes_per_second / 100000))
+  printf '%d.%d MB/s' "$((scaled / 10))" "$((scaled % 10))"
 }
 
 enable_console_tty() {
@@ -313,8 +346,10 @@ machine_status() {
 
 status_line() {
   local output state="UNKNOWN" diagnostic="UNKNOWN" free=0 minutes=0 path="" rviz=closed line key value
+  local bytes=0 started=0 now elapsed delta_time delta_bytes rate_bytes duration size rate
   if ! output="$(machine_status 2>&1)"; then
     STATUS_TEXT="CONTROL DISCONNECTED - Jetson session left unchanged"
+    STATUS_STYLE="1;33"
     draw_footer
     return 1
   fi
@@ -325,11 +360,53 @@ status_line() {
       FREE_BYTES) free="$value" ;;
       EST_LOSSLESS_MINUTES) minutes="$value" ;;
       RECORDING_PATH) path="$value" ;;
+      FILE_BYTES) bytes="$value" ;;
+      STARTED_EPOCH) started="$value" ;;
     esac
   done <<<"$output"
   if [[ -n "$RVIZ_PID" ]] && kill -0 "$RVIZ_PID" 2>/dev/null; then rviz=open; fi
-  line="STATE=$state  RECORDING=$diagnostic  RVIZ=$rviz  LOSSLESS≈${minutes}min"
-  [[ -n "$path" ]] && line+="  FILE=$(basename -- "$path")"
+
+  now="$(date +%s)"
+  if [[ -n "$path" && "$bytes" =~ ^[0-9]+$ && "$started" =~ ^[0-9]+$ ]]; then
+    elapsed=$((now - started))
+    ((elapsed >= 0)) || elapsed=0
+    rate_bytes=0
+    if [[ "$path" == "$PREV_RECORDING_PATH" ]] &&
+       ((PREV_SAMPLE_EPOCH > 0 && now > PREV_SAMPLE_EPOCH && bytes >= PREV_FILE_BYTES)); then
+      delta_time=$((now - PREV_SAMPLE_EPOCH))
+      delta_bytes=$((bytes - PREV_FILE_BYTES))
+      rate_bytes=$((delta_bytes / delta_time))
+    elif ((elapsed > 0)); then
+      rate_bytes=$((bytes / elapsed))
+    fi
+    duration="$(format_duration "$elapsed")"
+    size="$(format_data_size "$bytes")"
+    rate="$(format_data_rate "$rate_bytes")"
+    if [[ "$diagnostic" == ACTIVE ]]; then
+      STATUS_STYLE="1;31"
+      line="● REC  $duration  SAVED=$size  WRITE=$rate  RVIZ=$rviz  $(basename -- "$path")"
+    else
+      STATUS_STYLE="1;33"
+      line="● RECORDING?  $duration  SAVED=$size  WRITE=$rate  RVIZ=$rviz"
+    fi
+    PREV_RECORDING_PATH="$path"
+    PREV_FILE_BYTES="$bytes"
+    PREV_SAMPLE_EPOCH="$now"
+  else
+    PREV_RECORDING_PATH=""
+    PREV_FILE_BYTES=0
+    PREV_SAMPLE_EPOCH=0
+    if [[ "$state" == VIEWING ]]; then
+      STATUS_STYLE="1;32"
+      line="○ VIEW ONLY  RVIZ=$rviz  LOSSLESS CAPACITY≈${minutes}min"
+    elif [[ "$state" == STOPPED ]]; then
+      STATUS_STYLE="1;36"
+      line="○ STOPPED  RVIZ=$rviz"
+    else
+      STATUS_STYLE="1;33"
+      line="? $state  RECORDING=$diagnostic  RVIZ=$rviz"
+    fi
+  fi
   STATUS_TEXT="$line"
   draw_footer
 }
@@ -421,7 +498,7 @@ last_status="$(date +%s)"
 status_line || true
 while true; do
   now="$(date +%s)"
-  if ((now - last_status >= 5)); then
+  if ((now - last_status >= STATUS_INTERVAL)); then
     status_line || true
     last_status="$now"
   fi

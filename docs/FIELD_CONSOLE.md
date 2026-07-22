@@ -59,6 +59,14 @@ session, including while a remote start, save, or health check is running, so a
 queued key cannot be printed in the middle of command output. Normal terminal
 settings are restored on `q`, `Ctrl+C`, failure, or ordinary process exit.
 
+The first footer row is a prominent state indicator. Green `○ VIEW ONLY` means
+the cameras are live but no SVO2 is being written. Bold red `● REC` means the
+SDK-confirmed recording file is active; beside it, the console refreshes elapsed
+time, total bytes saved in decimal MB/GB, the rolling decimal MB/s write rate,
+RViz state, and the active filename once per second. Yellow indicates an
+unconfirmed recording or disconnected control path. The write rate comes from
+the change in the actual Jetson-side file size, not an assumed preset bitrate.
+
 The controller reuses one multiplexed SSH connection and its automatic status
 line reads only the Jetson unit and saved session state. It does not launch ROS
 discovery in the keyboard loop. Pressing `i` deliberately performs the deeper
