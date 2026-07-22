@@ -208,6 +208,13 @@ Never kill the ROS wrapper while it reports an active recording. Use
 - **SSH works but ROS topics are missing:** the camera may be fine. Check ROS
   domain 42, Cyclone DDS, workstation firewall, AP/client isolation, and LAN
   multicast. The console leaves the Jetson session running.
+- **Startup stops at `Running as unit`:** older revisions queried discovery
+  through a persistent ROS 2 CLI daemon. After moving between SSIDs, that
+  daemon could remain bound to the previous address even though the ZED node
+  had opened normally. Current revisions stop the stale daemon, use direct DDS
+  discovery, print a bounded 90-second readiness wait, and show the preserved
+  unit log before cleaning up a failed start. Pull the current repository on
+  both machines.
 - **RViz closes after a healthy startup:** focus the controller terminal and
   press `v`. Camera ownership and recording are unchanged.
 - **Low-space refusal:** move or archive data from `/home/dusty/Videos/ZED/`;
@@ -240,6 +247,19 @@ export ROS_DOMAIN_ID=42
 export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 ros2 multicast send
 ```
+
+Before changing AsteraMesh, Mars, or MarsLink, press `q` or use `--stop` and
+wait for both cameras to return to `AVAILABLE`. A detached/orphaned camera
+publisher cannot migrate its DDS participant to a new IP. Then move both
+machines to the new SSID, wait for each to receive its new address, and rerun
+the field command. On a new launch, the Jetson helper resets its persistent
+ROS 2 CLI daemon automatically because a daemon started on the old address
+cannot migrate either. The new camera publisher and RViz processes select the
+current interface.
+
+Internet access is not required for live control, preview, or recording once
+the offline setup is installed. Lack of WAN access is distinct from local
+multicast/client-isolation behavior.
 
 Do not guess a static address from the SSID. AsteraMesh currently has a working
 Jetson path, but receiver-side SSH/DDS acceptance and the Mars/MarsLink routing,

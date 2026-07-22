@@ -17,6 +17,7 @@ RUNTIME_BASE="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 STATE_DIR="$RUNTIME_BASE/zed-field-console"
 COMMAND_LOCK="$STATE_DIR/command.lock"
 START_SERVICE="/zed/zed_node/start_svo_rec"
+START_SERVICE_TYPE="zed_msgs/srv/StartSvoRec"
 STOP_SERVICE="/zed/zed_node/stop_svo_rec"
 MACHINE=false
 
@@ -77,22 +78,39 @@ source_ros() {
   zed_ros_source_environment
 }
 
+reset_ros_cli_daemon() {
+  # A ros2cli daemon keeps the DDS interface/address it had when it started.
+  # After changing field networks it can therefore hide a healthy graph behind
+  # stale discovery data. All controller probes below are direct, so no daemon
+  # is needed for this session.
+  timeout 5s ros2 daemon stop >/dev/null 2>&1 || true
+}
+
+show_recent_unit_logs() {
+  local lines="${1:-200}"
+  # User-unit output is stored in the system journal on this Jetson. The
+  # --user/-u form reports no journal files here.
+  journalctl "_SYSTEMD_USER_UNIT=$UNIT" -n "$lines" --no-pager
+}
+
 wait_for_recording_service() {
-  local elapsed=0 service_type
-  while ((elapsed < START_TIMEOUT)); do
+  local deadline=$((SECONDS + START_TIMEOUT)) node_info remaining probe_timeout
+  while ((SECONDS < deadline)); do
     if ! unit_active; then
       echo "The transient live unit stopped before ROS became ready." >&2
-      journalctl --user -u "$UNIT" -n 60 --no-pager >&2 || true
       return 1
     fi
-    service_type="$(timeout 3s ros2 service type "$START_SERVICE" 2>/dev/null || true)"
-    if [[ "$service_type" == "zed_msgs/srv/StartSvoRec" ]]; then
+    remaining=$((deadline - SECONDS))
+    probe_timeout=3
+    ((remaining < probe_timeout)) && probe_timeout=$remaining
+    node_info="$(timeout "${probe_timeout}s" ros2 node info --no-daemon \
+      --spin-time 1 /zed/zed_node 2>/dev/null || true)"
+    if grep -Fq "$START_SERVICE: $START_SERVICE_TYPE" <<<"$node_info"; then
       return 0
     fi
-    sleep 1
-    elapsed=$((elapsed + 1))
+    ((SECONDS < deadline)) && sleep 1
   done
-  echo "Timed out waiting ${START_TIMEOUT}s for $START_SERVICE" >&2
+  echo "Timed out after ${START_TIMEOUT}s waiting for direct discovery of $START_SERVICE" >&2
   return 1
 }
 
@@ -254,6 +272,8 @@ start_session() {
     die "No persistent user manager: run once with a local password: sudo loginctl enable-linger $(id -un)"
   fi
   source_ros
+  echo "Resetting ROS 2 CLI discovery for the current network..."
+  reset_ros_cli_daemon
   zed_ros_require_no_owner
   mkdir -p "$OUTPUT_DIR"
   [[ -w "$OUTPUT_DIR" ]] || die "Output directory is not writable: $OUTPUT_DIR"
@@ -267,7 +287,10 @@ start_session() {
     --setenv="CYCLONEDDS_URI=file://$ROOT/config/ros2/cyclonedds-jetson.xml" \
     "$ROOT/scripts/start_ros2_virtual_stereo.sh" >/dev/null
 
+  echo "Waiting up to ${START_TIMEOUT}s for direct ZED service discovery..."
   if ! wait_for_recording_service; then
+    echo "Recent transient-unit log:" >&2
+    show_recent_unit_logs 80 >&2 || true
     systemctl --user stop "$UNIT" 2>/dev/null || true
     return 1
   fi
@@ -466,7 +489,7 @@ stop_session() {
 }
 
 show_logs() {
-  journalctl --user -u "$UNIT" -n 200 --no-pager
+  show_recent_unit_logs 200
 }
 
 command="${1:-}"
