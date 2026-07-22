@@ -27,8 +27,9 @@ The workstation must be Ubuntu 22.04 with the receiver packages installed:
 The remote workstation does not need the ZED SDK or CUDA.
 RViz subscribes directly to the ZED wrapper's compressed color and depth
 topics. A single local helper decodes Draco because Humble's PointCloud2
-display accepts only sensor_msgs/PointCloud2. The launcher verifies all three
-displayed streams before reporting readiness. Ctrl+C closes RViz and the helper.
+display accepts only sensor_msgs/PointCloud2. The launcher reports graph
+discovery before launch and does not create duplicate high-bandwidth health
+subscribers. Ctrl+C closes RViz and the helper.
 EOF
 }
 
@@ -126,34 +127,11 @@ kill -0 "$rviz_pid" 2>/dev/null || {
   exit 1
 }
 
-health_dir="$(mktemp -d /tmp/zed-rviz-health.XXXXXX)"
-health_topics=(
-  /zed/zed_node/rgb/color/rect/image/compressed
-  /zed/zed_node/depth/depth_registered/compressedDepth
-  /zed_field/point_cloud/cloud_registered
-)
-health_failed=false
-for i in "${!health_topics[@]}"; do
-  if ! timeout 20s ros2 topic echo --once "${health_topics[$i]}" --field header \
-    >"$health_dir/$i" 2>&1; then
-    echo "No message reached RViz stream: ${health_topics[$i]}" >&2
-    sed -n '1,30p' "$health_dir/$i" >&2
-    health_failed=true
-  fi
-done
-rm -rf -- "$health_dir"
-$health_failed && exit 1
-
-for topic in "${health_topics[@]}"; do
-  info="$(timeout 8s ros2 topic info --no-daemon "$topic" 2>&1)"
-  if ! grep -Eq 'Publisher count: [1-9]' <<<"$info" ||
-     ! grep -Eq 'Subscription count: [1-9]' <<<"$info"; then
-    echo "RViz is not connected to healthy stream: $topic" >&2
-    printf '%s\n' "$info" >&2
-    exit 1
-  fi
-done
-
-echo "RViz data paths healthy: RGB, depth, and Draco-decoded point cloud."
-[[ -z "$READY_FILE" ]] || : >"$READY_FILE"
+# The controller must become interactive as soon as the window is alive.
+# Receiving another copy of each large image merely to prove RViz is receiving
+# one duplicates network traffic and can starve a marginal field LAN. The
+# source-topic preflight already ran in zed_field_console.sh; report window
+# readiness immediately and let the operator judge the visible frames.
+[[ -z "$READY_FILE" ]] || printf 'window-alive\n' >"$READY_FILE"
+echo "RViz window ready; use its visible panes to judge live frame delivery."
 wait "$rviz_pid"

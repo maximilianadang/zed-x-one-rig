@@ -165,10 +165,19 @@ DDS layer, where lost pieces can be retransmitted, instead of relying on fragile
 IP fragmentation. The workstation retains the general Cyclone profile because
 its expanded image topics travel only between local processes.
 
-Initial startup is accepted only after actual messages reach all three local
-RViz topics and RViz has subscribed to them. If that health gate fails, the
-console reports the local log and stops the new Jetson session instead of
-leaving an orphaned camera owner.
+Before opening RViz, the console confirms that all three source topics are
+discoverable. Keyboard controls activate as soon as the RViz process and
+window are stable. It does not subscribe to a second copy of the
+high-bandwidth streams merely to test them. The operator verifies actual frame
+delivery directly in the visible RGB, depth, and point-cloud panes; degraded
+preview does not kill a usable viewer or disable recording controls.
+
+Older revisions used separate `ros2 topic echo` subscribers as an acceptance
+gate. That duplicated full RGB and depth traffic and could time out on a
+marginal LAN even while RViz visibly displayed live data. The parent timeout
+then stopped the otherwise healthy session before keyboard controls appeared.
+Current revisions treat a living RViz window as ready and leave visual frame
+delivery for the operator to confirm directly.
 
 ## Status, attach, and safe stop without RViz
 
@@ -217,6 +226,10 @@ Never kill the ROS wrapper while it reports an active recording. Use
   both machines.
 - **RViz closes after a healthy startup:** focus the controller terminal and
   press `v`. Camera ownership and recording are unchanged.
+- **RViz is live but controls have not appeared:** pull the current repository
+  on the workstation. Older revisions blocked the terminal behind duplicate
+  high-bandwidth message probes. In current revisions, controls appear as soon
+  as the RViz window is stable.
 - **Low-space refusal:** move or archive data from `/home/dusty/Videos/ZED/`;
   do not bypass the reserve casually.
 - **Temporary `.recording.svo2` remains:** finalization or validation was not

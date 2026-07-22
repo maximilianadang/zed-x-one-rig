@@ -198,10 +198,12 @@ start_rviz() {
   ZED_RVIZ_READY_FILE="$RVIZ_READY" \
     setsid "$ROOT/scripts/start_ros2_rviz.sh" >"$RVIZ_LOG" 2>&1 &
   RVIZ_PID=$!
+  echo "Opening RViz; keyboard controls activate when its window is stable..."
   elapsed=0
   while ((elapsed < 50)); do
     if [[ -e "$RVIZ_READY" ]]; then
-      echo "RViz opened with healthy RGB, depth, and point cloud (PID $RVIZ_PID)."
+      echo "RViz opened (PID $RVIZ_PID). Keyboard controls are active."
+      echo "  No duplicate image/depth health streams were opened."
       echo "  Log: $RVIZ_LOG"
       return 0
     fi
@@ -215,7 +217,7 @@ start_rviz() {
     sleep 1
     elapsed=$((elapsed + 1))
   done
-  echo "RViz data-path health check timed out. Log: $RVIZ_LOG" >&2
+  echo "RViz window startup timed out. Log: $RVIZ_LOG" >&2
   tail -n 80 "$RVIZ_LOG" >&2 || true
   stop_rviz
   return 1
@@ -361,7 +363,7 @@ if ! $NO_RVIZ; then
     echo "Initial RViz acceptance failed; stopping the Jetson session to avoid an orphan." >&2
     remote_session stop ||
       echo "Automatic Jetson stop was not confirmed; run this console with --stop." >&2
-    die "Remote view did not pass RGB/depth/point-cloud health checks"
+    die "RViz failed to keep its window open during startup"
   fi
 fi
 
