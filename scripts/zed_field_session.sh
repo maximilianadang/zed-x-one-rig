@@ -218,6 +218,7 @@ print_status() {
   fi
   [[ -n "$last" ]] && echo "  Last saved:  $last"
   [[ -n "$failed" ]] && echo "  Needs check: $failed"
+  return 0
 }
 
 start_session() {
