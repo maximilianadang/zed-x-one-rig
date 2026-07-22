@@ -12,6 +12,7 @@ REMOTE_ROOT="${ZED_FIELD_REMOTE_ROOT_OVERRIDE:-$ZED_FIELD_REMOTE_ROOT}"
 VIEW_PROFILE=field
 INDEX=1
 SVO=""
+SELECTION_MODE=choose
 RATE=1.0
 LOOP=false
 NO_RVIZ=false
@@ -29,7 +30,7 @@ TTY_STATE=""
 FOOTER_DRAWN=false
 STATUS_TEXT="REPLAY STARTING"
 STATUS_STYLE="1;33"
-CONTROL_TEXT="Keys: Space/p play-pause | ←/→ 1s | ,/. frame | -/+ speed | 0 restart | i info | v RViz | q quit"
+CONTROL_TEXT="Keys: Space/p play-pause | o open dataset | ←/→ 1s | ,/. frame | -/+ speed | i info | v RViz | q quit"
 STATUS_INTERVAL=1
 SSH_OPTIONS=(
   -n
@@ -46,10 +47,11 @@ usage() {
   cat <<EOF
 Review this rig's SVO2 recordings from the Ubuntu viewing workstation.
 
-Replay the newest finalized recording (most likely field command):
+Browse remote recordings and select one (most likely field command):
   $ROOT/scripts/zed_replay_console.sh --jetson dusty@ubuntu.local
 
-List recordings, or select the third-newest recording:
+Skip the browser and immediately replay newest, or select the third-newest:
+  $ROOT/scripts/zed_replay_console.sh --jetson dusty@ubuntu.local --latest
   $ROOT/scripts/zed_replay_console.sh --jetson dusty@ubuntu.local --list
   $ROOT/scripts/zed_replay_console.sh --jetson dusty@ubuntu.local --index 3
 
@@ -61,7 +63,9 @@ Options:
   --jetson USER@HOST   Jetson SSH target (default: $JETSON)
   --remote-root PATH   Repository path on the Jetson (default: $REMOTE_ROOT)
   --view-profile NAME  ROS profile name or absolute Jetson path (default: field)
-  --index N            Replay the Nth-newest finalized recording (default: 1)
+  --choose             Show the interactive remote dataset browser (default)
+  --latest             Immediately replay the newest finalized recording
+  --index N            Immediately replay the Nth-newest finalized recording
   --svo PATH           Replay an exact absolute path on the Jetson
   --loop               Loop at end of recording
   --rate RATE          Initial playback speed, 0.1-5.0 (default: $RATE)
@@ -80,6 +84,7 @@ Interactive keys:
   J and L     Step backward/forward ten seconds and pause
   - and +     Decrease/increase playback speed (0.1x to 5x)
   0           Pause and return to frame zero
+  o           Open the remote dataset browser and switch recordings
   i           Detailed replay status
   v           Reopen RViz and refresh the current frame
   h           Show keys
@@ -100,7 +105,7 @@ key_help() {
   echo "  ,/.        step -/+ 1 frame (pauses)"
   echo "  J/L        step -/+ 10 seconds (pauses)"
   echo "  -/+        slower/faster (0.1x to 5x)"
-  echo "  0 restart  i status  v reopen RViz  h help  q safe quit"
+  echo "  o open dataset  0 restart  i status  v reopen RViz  h help  q safe quit"
 }
 
 shell_join() {
@@ -120,6 +125,61 @@ remote_shell() {
 
 remote_session() {
   remote_shell "$REMOTE_ROOT/scripts/zed_replay_session.sh" "$@"
+}
+
+build_start_args() {
+  start_args=(start --profile "$REMOTE_PROFILE" --rate "$RATE")
+  if [[ "$SELECTION_MODE" == path ]]; then
+    start_args+=(--svo "$SVO")
+  else
+    start_args+=(--index "$INDEX")
+  fi
+  if $LOOP; then start_args+=(--loop); fi
+}
+
+choose_recording() {
+  local output status_output active_svo="" number modified bytes path choice stamp size marker
+  local -a recording_paths=()
+  if ! output="$(remote_session list --machine --limit 50 2>&1)"; then
+    printf '%s\n' "$output" >&2
+    echo "Could not load the remote SVO2 directory." >&2
+    return 1
+  fi
+  status_output="$(remote_session status --machine 2>/dev/null || true)"
+  active_svo="$(sed -n 's/^SVO=//p' <<<"$status_output" | head -n1)"
+
+  echo
+  echo "Remote SVO2 datasets on $JETSON (newest first)"
+  printf '%-4s %-19s %10s  %s\n' "#" "Captured" "Size" "Dataset"
+  while IFS=$'\t' read -r number modified bytes path; do
+    [[ "$number" =~ ^[1-9][0-9]*$ && -n "$path" ]] || continue
+    recording_paths[$number]="$path"
+    stamp="$(date -d "@$modified" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || printf '%s' "$modified")"
+    size="$(numfmt --to=iec-i --suffix=B "$bytes" 2>/dev/null || printf '%sB' "$bytes")"
+    marker=""
+    [[ "$path" == "$active_svo" ]] && marker="  [ACTIVE]"
+    printf '%-4s %-19s %10s  %s%s\n' "$number" "$stamp" "$size" \
+      "$(basename -- "$path")" "$marker"
+  done <<<"$output"
+  ((${#recording_paths[@]} > 0)) || {
+    echo "No finalized remote SVO2 datasets were returned." >&2
+    return 1
+  }
+
+  while true; do
+    printf 'Select dataset [1 newest, Enter=1, q=cancel]: '
+    IFS= read -r choice
+    choice="${choice:-1}"
+    [[ "$choice" == q || "$choice" == Q ]] && return 1
+    if [[ "$choice" =~ ^[1-9][0-9]*$ && -n "${recording_paths[$choice]:-}" ]]; then
+      INDEX="$choice"
+      SVO=""
+      SELECTION_MODE=index
+      echo "Selected #$choice: $(basename -- "${recording_paths[$choice]}")"
+      return 0
+    fi
+    echo "Enter one of the listed dataset numbers, or q to cancel."
+  done
 }
 
 close_ssh_master() {
@@ -280,7 +340,11 @@ print_resolution() {
   resolved="$(getent ahosts "$host" 2>/dev/null |
     awk '!seen[$1]++ {printf "%s%s", sep, $1; sep=","}' || true)"
   network="$(nmcli -t -f ACTIVE,SSID dev wifi 2>/dev/null | awk -F: '$1 == "yes" {print $2; exit}' || true)"
-  if [[ -n "$SVO" ]]; then selection="$SVO"; else selection="recording #$INDEX (newest=1)"; fi
+  case "$SELECTION_MODE" in
+    choose) selection="interactive remote dataset browser" ;;
+    path) selection="$SVO" ;;
+    *) selection="recording #$INDEX (newest=1)" ;;
+  esac
   echo "Remote replay target"
   echo "  SSH:       $JETSON"
   echo "  Resolver:  ${resolved:-SSH will resolve the configured host/alias}"
@@ -360,6 +424,34 @@ status_line() {
 
 detailed_status() { remote_session status; }
 
+open_dataset() {
+  local had_tty=false
+  [[ -n "$TTY_STATE" ]] && had_tty=true
+  restore_console_tty
+  if ! choose_recording; then
+    echo "Dataset switch cancelled. Current replay was left unchanged."
+    $had_tty && enable_console_tty
+    return 0
+  fi
+  $had_tty && enable_console_tty
+  build_start_args
+  echo "Stopping the current replay before opening dataset #$INDEX..."
+  if ! remote_session stop; then
+    echo "Current replay did not stop; the selected dataset was not opened." >&2
+    return 1
+  fi
+  if ! remote_session "${start_args[@]}"; then
+    echo "Selected dataset did not start. Use o to choose another or q to exit." >&2
+    return 1
+  fi
+  if ! $NO_RVIZ; then
+    wait_for_topics || return 1
+    start_rviz || return 1
+    remote_session seek 0 >/dev/null
+  fi
+  echo "Dataset #$INDEX is ready, paused at frame zero."
+}
+
 safe_quit() {
   echo "Stopping headless Jetson replay and closing RViz..."
   if remote_session stop; then
@@ -378,8 +470,10 @@ while (($#)); do
     --jetson) JETSON="${2:-}"; shift ;;
     --remote-root) REMOTE_ROOT="${2:-}"; shift ;;
     --view-profile) VIEW_PROFILE="${2:-}"; shift ;;
-    --index) INDEX="${2:-}"; shift ;;
-    --svo) SVO="${2:-}"; shift ;;
+    --choose) SELECTION_MODE=choose ;;
+    --latest) SELECTION_MODE=index; INDEX=1 ;;
+    --index) SELECTION_MODE=index; INDEX="${2:-}"; shift ;;
+    --svo) SELECTION_MODE=path; SVO="${2:-}"; shift ;;
     --loop) LOOP=true ;;
     --rate) RATE="${2:-}"; shift ;;
     --no-rviz) NO_RVIZ=true ;;
@@ -410,9 +504,7 @@ else
 fi
 
 print_resolution
-start_args=(start --profile "$REMOTE_PROFILE" --rate "$RATE")
-[[ -n "$SVO" ]] && start_args+=(--svo "$SVO") || start_args+=(--index "$INDEX")
-$LOOP && start_args+=(--loop)
+build_start_args
 if $DRY_RUN; then
   echo "Dry run; no SSH, ROS, RViz, or replay action was taken."
   echo "Remote start: $(shell_join "$REMOTE_ROOT/scripts/zed_replay_session.sh" "${start_args[@]}")"
@@ -431,6 +523,14 @@ case "$ACTION" in
 esac
 
 [[ -t 0 ]] || die "Interactive replay requires a terminal; use --list, --status, or --stop for automation"
+if [[ "$SELECTION_MODE" == choose ]]; then
+  choose_recording || {
+    close_ssh_master
+    echo "No dataset selected."
+    exit 0
+  }
+  build_start_args
+fi
 $NO_RVIZ || receiver_gui_preflight
 trap detached_exit INT TERM
 trap local_cleanup EXIT
@@ -484,6 +584,7 @@ while true; do
       -|'_') echo "Reducing playback speed..."; remote_session speed down ;;
       +|'=') echo "Increasing playback speed..."; remote_session speed up ;;
       0) echo "Returning to the first frame..."; remote_session restart ;;
+      o|O) open_dataset || true ;;
       i|I) detailed_status ;;
       v|V)
         if start_rviz; then remote_session seek "$CURRENT_FRAME" >/dev/null || true; fi

@@ -132,8 +132,8 @@ then RViz from the remote workstation:
 ./scripts/start_ros2_rviz.sh
 ```
 
-Replay the newest recording headlessly from the same workstation, with pause,
-seek, step, speed, loop, status, and RViz controls:
+Browse the Jetson's finalized recordings and replay one headlessly from the
+same workstation, with pause, seek, step, speed, loop, status, and RViz controls:
 
 ```bash
 ./scripts/zed_replay_console.sh --jetson zed-jetson

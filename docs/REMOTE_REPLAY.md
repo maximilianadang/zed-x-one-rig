@@ -6,7 +6,7 @@ calibration to recompute NEURAL depth and the colored point cloud, and publishes
 standard ROS 2 topics. The Ubuntu ThinkPad runs RViz and needs neither the ZED
 SDK nor CUDA.
 
-## Start the newest recording
+## Browse and start a recording
 
 First stop a live camera session with `q`. Then, from this repository on the
 ThinkPad:
@@ -23,16 +23,22 @@ With mDNS instead of the recommended SSH alias:
   --remote-root /home/dusty/workspace/terraforming_mars/zed-x-one-rig
 ```
 
-The command selects the newest finalized `.svo2`, validates its frame index and
+The command validates the selected finalized `.svo2` frame index and
 virtual serial, starts a named headless Jetson replay unit, pauses and rewinds
 to frame zero, opens RViz locally, and republishes frame zero after RViz is
-ready. It never needs a Jetson desktop session or attached display.
+ready. Before starting, it displays a numbered remote dataset directory with
+capture time, size, and filename. Press Enter for the newest file or type an
+index. A currently loaded replay is marked `[ACTIVE]`. It never needs a Jetson
+desktop session or attached display.
 
 ## Select a recording
 
 ```bash
 # Show finalized recordings, newest first.
 ./scripts/zed_replay_console.sh --jetson zed-jetson --list
+
+# Skip the interactive directory and immediately replay newest.
+./scripts/zed_replay_console.sh --jetson zed-jetson --latest
 
 # Replay the third-newest recording.
 ./scripts/zed_replay_console.sh --jetson zed-jetson --index 3
@@ -58,6 +64,7 @@ not confirmed as finalized. Selection index `1` always means newest.
 | `J` / `L` | Pause and step backward/forward ten seconds. |
 | `-` / `+` | Reduce/increase playback speed through 0.1x–5x presets. |
 | `0` | Pause and return to frame zero. |
+| `o` | Open the remote dataset directory and switch recordings. |
 | `i` | Print detailed file, frame, loop, speed, and unit status. |
 | `v` | Reopen RViz and republish the current paused frame. |
 | `h` | Print the key reference. |
@@ -68,6 +75,11 @@ frame position, speed, loop count, RViz state, and filename. Seeking is clamped
 to the valid frame range. Step commands always pause first. A persistent
 Jetson-side controller keeps the ROS services discovered, so each workstation
 key does not pay a fresh DDS-discovery delay.
+
+Choosing `o` lists the current Jetson files before stopping anything. Cancelling
+leaves the current replay untouched. After a selection, the console cleanly
+stops the old replay, starts the selected SVO2 paused at frame zero, retains or
+reopens RViz, and republishes the first frame.
 
 ## Disconnect and recovery
 

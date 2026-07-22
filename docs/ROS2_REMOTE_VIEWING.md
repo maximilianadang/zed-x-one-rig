@@ -158,8 +158,8 @@ ZED_Explorer --all
 
 The raw `.svo2` remains on the Jetson. The Jetson opens it headlessly with the
 ZED SDK, recomputes NEURAL depth, and publishes the same ROS topics used for
-live data. From the remote workstation, the normal one-command route replays
-the newest finalized recording:
+live data. From the remote workstation, the normal one-command route displays
+a numbered remote dataset directory and replays the selected recording:
 
 ```bash
 ./scripts/zed_replay_console.sh --jetson zed-jetson
@@ -172,6 +172,9 @@ List recordings or select the third-newest:
 ./scripts/zed_replay_console.sh --jetson zed-jetson --index 3
 ```
 
+Press Enter in the normal browser to select the newest recording, or add
+`--latest` to bypass the browser entirely.
+
 Select an exact Jetson path and loop it:
 
 ```bash
@@ -182,6 +185,8 @@ Select an exact Jetson path and loop it:
 Replay starts paused at frame zero, opens RViz, and refreshes the paused frame
 after RViz subscribes. The terminal provides play/pause, single-frame and timed
 steps, restart, 0.1x-5x speed changes, status, RViz reopen, and safe shutdown.
+Press `o` during replay to browse and switch datasets without leaving the
+console.
 The launcher validates the SVO2 with `ZED_SVO_Editor -inf` and refuses files
 with no indexed frames or a virtual serial other than `116863460`.
 
