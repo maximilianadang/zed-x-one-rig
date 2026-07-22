@@ -25,7 +25,7 @@ SSH_OPTIONS=(
   -o ServerAliveInterval=5
   -o ServerAliveCountMax=3
   -o ControlMaster=auto
-  -o ControlPersist=60
+  -o ControlPersist=600
   -o "ControlPath=$CONTROL_PATH"
 )
 
@@ -56,7 +56,7 @@ Options:
 Interactive keys:
   r  Start a new LOSSLESS recording on the Jetson
   s  Stop, finalize, validate, and save the active recording
-  i  Print detailed session, file, and storage status
+  i  Run a detailed ROS, session, file, and storage health check
   v  Reopen local RViz without touching the Jetson session
   h  Print key help
   q  Finalize if needed, stop the Jetson session, and close RViz
@@ -78,7 +78,7 @@ die() {
 key_help() {
   echo
   echo "Terminal focus required for keys."
-  echo "Keys: [r] record lossless  [s] stop/save  [i] status  [v] reopen RViz  [h] help  [q] safe quit"
+  echo "Keys: [r] record lossless  [s] stop/save  [i] deep status  [v] reopen RViz  [h] help  [q] safe quit"
 }
 
 shell_join() {
@@ -263,7 +263,7 @@ ssh_preflight() {
 }
 
 machine_status() {
-  remote_session status --machine
+  remote_session status --machine --fast
 }
 
 status_line() {
@@ -370,7 +370,7 @@ fi
 echo
 echo "VIEW ONLY - recording is OFF until you press r."
 key_help
-last_status=0
+last_status="$(date +%s)"
 while true; do
   now="$(date +%s)"
   if ((now - last_status >= 5)); then
@@ -391,6 +391,7 @@ while true; do
         ;;
       s|S)
         echo
+        echo "Stopping, finalizing, and validating the recording..."
         if remote_session record-stop; then
           echo "Recording was finalized, validated, and saved."
         else
@@ -402,6 +403,8 @@ while true; do
       h|H|'?') key_help ;;
       q|Q) safe_quit ;;
     esac
-    last_status=0
+    # A handled key already produced its own acknowledgement or result. Do not
+    # immediately hide it behind a second synchronous remote status request.
+    last_status="$(date +%s)"
   fi
 done

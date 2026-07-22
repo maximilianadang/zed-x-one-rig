@@ -42,7 +42,7 @@ because the camera or RViz is open.
 |---|---|
 | `r` | Start a new lossless SVO2 on the Jetson; return after the SDK accepts it and file growth passes. |
 | `s` | Stop, finalize, validate, and promote the temporary SVO2 to its final name. |
-| `i` | Print unit, ROS, recording, path, size, storage, and last-saved status. |
+| `i` | Run a detailed ROS health probe and print unit, recording, path, size, storage, and last-saved status. |
 | `v` | Reopen local RViz without reopening cameras or changing recording. |
 | `h` | Print the key reminder. |
 | `q` | Finalize if necessary, stop the exact Jetson unit, close RViz, and confirm both cameras are available. |
@@ -50,6 +50,14 @@ because the camera or RViz is open.
 These keys are read by the terminal controller. Focus the terminal—not the
 RViz window—before pressing them. SSH control commands have stdin disabled so
 they cannot consume a key intended for the controller.
+
+The controller reuses one multiplexed SSH connection and its automatic status
+line reads only the Jetson unit and saved session state. It does not launch ROS
+discovery in the keyboard loop. Pressing `i` deliberately performs the deeper
+live ROS graph check, so that one command can take a few seconds if DDS is slow.
+The `r` command also waits about five seconds to prove that the SVO2 is growing;
+`s` waits for finalization and validation. Both acknowledge the key immediately,
+so those safety checks should not feel like a missed keystroke.
 
 `Ctrl+C`, a closed laptop, lost Wi-Fi, a dead SSH connection, or an RViz crash
 does **not** stop the Jetson session or an active recording. This is deliberate:

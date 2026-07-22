@@ -20,6 +20,7 @@ START_SERVICE="/zed/zed_node/start_svo_rec"
 START_SERVICE_TYPE="zed_msgs/srv/StartSvoRec"
 STOP_SERVICE="/zed/zed_node/stop_svo_rec"
 MACHINE=false
+FAST=false
 
 usage() {
   cat <<EOF
@@ -34,7 +35,8 @@ Copy/paste commands on the Jetson:
 
 Commands:
   start [--profile PATH]  Start or attach to the transient live ROS session
-  status [--machine]      Show unit, ROS, recording, file, and storage state
+  status [--machine] [--fast]
+                          Show unit, ROS, recording, file, and storage state
   record-start            Start the proven lossless SVO2 mode
   record-stop             Finalize, validate, and promote the current SVO2
   stop                    Finalize if needed, stop ROS, and verify camera release
@@ -190,11 +192,22 @@ print_status() {
   node_state=absent
   diag="NOT ACTIVE"
   if [[ "$unit_state" == active ]]; then
-    source_ros >/dev/null
-    if timeout 5s ros2 node list --no-daemon 2>/dev/null | grep -Fxq /zed/zed_node; then
-      node_state=ready
+    if $FAST; then
+      # start_session writes the profile only after the ZED service is ready,
+      # and stop_session removes it. This avoids blocking the interactive
+      # controller on a fresh DDS discovery probe every five seconds.
+      if [[ -n "$profile" ]]; then
+        node_state=ready
+      else
+        node_state=starting
+      fi
     else
-      node_state=starting
+      source_ros >/dev/null
+      if timeout 5s ros2 node list --no-daemon 2>/dev/null | grep -Fxq /zed/zed_node; then
+        node_state=ready
+      else
+        node_state=starting
+      fi
     fi
   fi
 
@@ -503,11 +516,14 @@ shift || true
 case "$command" in
   start) start_session "$@" ;;
   status)
-    case "${1:-}" in
-      --machine) MACHINE=true ;;
-      "") ;;
-      *) die "Unknown status option: $1" ;;
-    esac
+    while (($#)); do
+      case "$1" in
+        --machine) MACHINE=true ;;
+        --fast) FAST=true ;;
+        *) die "Unknown status option: $1" ;;
+      esac
+      shift
+    done
     print_status
     ;;
   record-start) record_start "$@" ;;
