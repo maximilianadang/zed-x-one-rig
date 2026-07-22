@@ -70,6 +70,16 @@ else
   fail "missing config/field_console.env"
 fi
 
+jetson_dds="$ROOT/config/ros2/cyclonedds-jetson.xml"
+if [[ -r "$jetson_dds" ]] &&
+   grep -Fq '<FragmentSize>1344B</FragmentSize>' "$jetson_dds" &&
+   grep -Fq '<MaxMessageSize>1400B</MaxMessageSize>' "$jetson_dds" &&
+   grep -Fq '<MaxRexmitMessageSize>1400B</MaxRexmitMessageSize>' "$jetson_dds"; then
+  pass "MTU-safe Jetson DDS sender profile"
+else
+  fail "missing or unsafe Jetson DDS sender profile: $jetson_dds"
+fi
+
 if zed_ros_user_manager_persistent; then
   pass "field session survives SSH disconnect (linger or active local session)"
 else

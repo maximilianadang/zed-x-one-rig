@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
+<!-- General receiver/local-process profile. The Jetson camera publisher uses
+     cyclonedds-jetson.xml to keep field-LAN UDP payloads below the link MTU. -->
 <CycloneDDS xmlns="https://cdds.io/config">
   <Domain id="any">
     <General>

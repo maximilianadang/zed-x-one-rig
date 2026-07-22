@@ -152,8 +152,16 @@ and `Depth`, then press `v` in the field console to reload the shipped layout.
 The LAN carries compressed RGB, compressed depth, and the wrapper's Draco
 point-cloud transport. The workstation expands all three into ordinary local
 ROS topics for RViz. On this rig the raw reduced point cloud measured about
-974 KB/s, while Draco measured about 12-14 KB/s and decoded at the full 2 Hz
-preview rate. This affects only visualization transport, never SVO2 contents.
+974 KB/s, while the current scene's Draco stream measured about 140 KB/s and
+decoded at the full 2 Hz preview rate. Draco size varies with scene content.
+This affects only visualization transport, never SVO2 contents.
+
+The Jetson camera publisher uses `config/ros2/cyclonedds-jetson.xml`, which
+caps UDP payloads at 1400 bytes on the 1500-byte field-LAN MTU. Cyclone DDS then
+fragments the roughly 174 KB RGB, 60 KB depth, and 69 KB Draco samples at the
+DDS layer, where lost pieces can be retransmitted, instead of relying on fragile
+IP fragmentation. The workstation retains the general Cyclone profile because
+its expanded image topics travel only between local processes.
 
 Initial startup is accepted only after actual messages reach all three local
 RViz topics and RViz has subscribed to them. If that health gate fails, the

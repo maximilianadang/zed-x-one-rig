@@ -264,6 +264,7 @@ start_session() {
     --property=TimeoutStopSec="${FINALIZE_TIMEOUT}s" \
     --property=SuccessExitStatus=SIGINT \
     --setenv="ZED_ROS_PROFILE=$profile" \
+    --setenv="CYCLONEDDS_URI=file://$ROOT/config/ros2/cyclonedds-jetson.xml" \
     "$ROOT/scripts/start_ros2_virtual_stereo.sh" >/dev/null
 
   if ! wait_for_recording_service; then

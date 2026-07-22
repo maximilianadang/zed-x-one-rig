@@ -2,6 +2,9 @@
 set -euo pipefail
 
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+# The camera publisher crosses a 1500-byte field LAN. Select the sender profile
+# before ros2_common assigns its general workstation/loopback default.
+export CYCLONEDDS_URI="${CYCLONEDDS_URI:-file://$ROOT/config/ros2/cyclonedds-jetson.xml}"
 # shellcheck disable=SC1091
 source "$ROOT/scripts/ros2_common.sh"
 
