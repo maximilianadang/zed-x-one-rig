@@ -89,6 +89,12 @@ Interactive keys:
   h           Show keys
   q           Stop Jetson replay and close RViz
 
+Dataset browser:
+  Up/Down      Move through the recording list
+  Enter        Open the highlighted recording
+  NUMBER Enter Open that numbered recording directly
+  q            Cancel without changing the current replay
+
 Backward seeking and time scrubbing are deliberately not exposed. Right Arrow
 uses sequential playback and never calls the ZED set_svo_frame service.
 
@@ -164,6 +170,7 @@ build_start_args() {
 
 choose_recording() {
   local output status_output active_svo="" number modified bytes path choice stamp size marker
+  local selected=1 typed="" sequence="" maximum=0 selected_path prompt
   local -a recording_paths=()
   if ! output="$(remote_session list --machine --limit 50 2>&1)"; then
     printf '%s\n' "$output" >&2
@@ -191,19 +198,69 @@ choose_recording() {
     return 1
   }
 
+  maximum="${#recording_paths[@]}"
+  echo "Use Up/Down then Enter, or type a dataset number and press Enter. q cancels."
+
   while true; do
-    printf 'Select dataset [1 newest, Enter=1, q=cancel]: '
-    IFS= read -r choice
-    choice="${choice:-1}"
-    [[ "$choice" == q || "$choice" == Q ]] && return 1
-    if [[ "$choice" =~ ^[1-9][0-9]*$ && -n "${recording_paths[$choice]:-}" ]]; then
-      INDEX="$choice"
-      SVO=""
-      SELECTION_MODE=index
-      echo "Selected #$choice: $(basename -- "${recording_paths[$choice]}")"
-      return 0
+    selected_path="${recording_paths[$selected]}"
+    prompt="Selected #$selected/$maximum: $(basename -- "$selected_path")"
+    [[ "$selected_path" == "$active_svo" ]] && prompt+=" [ACTIVE]"
+    [[ -n "$typed" ]] && prompt="Number: $typed  (Enter to open)"
+    printf '\r\033[2K%s' "$prompt"
+
+    choice=""
+    if ! IFS= read -rsn1 choice; then
+      printf '\r\033[2K'
+      return 1
     fi
-    echo "Enter one of the listed dataset numbers, or q to cancel."
+    if [[ "$choice" == $'\e' ]]; then
+      sequence=""
+      IFS= read -rsn2 -t 0.15 sequence || true
+      case "$sequence" in
+        '[A')
+          typed=""
+          if ((selected > 1)); then selected=$((selected - 1)); else selected="$maximum"; fi
+          ;;
+        '[B')
+          typed=""
+          if ((selected < maximum)); then selected=$((selected + 1)); else selected=1; fi
+          ;;
+      esac
+      continue
+    fi
+
+    case "$choice" in
+      q|Q)
+        printf '\r\033[2K'
+        return 1
+        ;;
+      [0-9])
+        typed+="$choice"
+        ;;
+      $'\x7f'|$'\b')
+        typed="${typed%?}"
+        ;;
+      '')
+        if [[ -n "$typed" ]]; then
+          if [[ "$typed" =~ ^[1-9][0-9]*$ && -n "${recording_paths[$typed]:-}" ]]; then
+            selected="$typed"
+          else
+            printf '\r\033[2KDataset #%s does not exist; choose 1-%s.\n' \
+              "${typed:-0}" "$maximum"
+            typed=""
+            continue
+          fi
+        fi
+        printf '\r\033[2K'
+        INDEX="$selected"
+        choice="$selected"
+        selected_path="${recording_paths[$selected]}"
+        SVO=""
+        SELECTION_MODE=index
+        echo "Selected #$choice: $(basename -- "$selected_path")"
+        return 0
+        ;;
+    esac
   done
 }
 

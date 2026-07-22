@@ -172,7 +172,8 @@ List recordings or select the third-newest:
 ./scripts/zed_replay_console.sh --jetson zed-jetson --index 3
 ```
 
-Press Enter in the normal browser to select the newest recording, or add
+Press Enter in the normal browser to select the newest recording, use Up/Down
+and Enter to choose another row, or type its number and press Enter. Add
 `--latest` to bypass the browser entirely.
 
 Select an exact Jetson path and loop it:

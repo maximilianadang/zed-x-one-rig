@@ -362,8 +362,8 @@ This headless workflow starts paused at frame zero and provides play/pause,
 forward-only single-frame advance, 0.1x-5x speed, loop, RViz reopen, and
 safe-stop controls. Right Arrow advances sequentially without seeking;
 backward and timed scrubbing are disabled. The default command shows a numbered
-remote directory; press Enter for newest or type an index. Use `o` during replay
-to switch datasets, or use
+remote directory; press Enter for newest, move with Up/Down and press Enter, or
+type an index and press Enter. Use `o` during replay to switch datasets, or use
 `--latest`, `--index N`, or `--svo /absolute/jetson/path.svo2` to bypass the
 browser. Complete offline instructions are in
 `docs/REMOTE_REPLAY.md`.

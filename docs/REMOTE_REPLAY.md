@@ -28,8 +28,9 @@ virtual serial, starts a named headless Jetson replay unit, pauses and rewinds
 to frame zero, opens RViz locally, and republishes frame zero after RViz is
 ready. Before starting, it displays a numbered remote dataset directory with
 capture time, size, and filename. Press Enter for the newest file or type an
-index. A currently loaded replay is marked `[ACTIVE]`. It never needs a Jetson
-desktop session or attached display.
+index. You can also move through the list with Up/Down and press Enter to open
+the highlighted recording. A currently loaded replay is marked `[ACTIVE]`. It
+never needs a Jetson desktop session or attached display.
 
 ## Select a recording
 
@@ -52,7 +53,10 @@ desktop session or attached display.
 ```
 
 Files ending in `.recording.svo2` are deliberately excluded because they were
-not confirmed as finalized. Selection index `1` always means newest.
+not confirmed as finalized. Selection index `1` always means newest. In the
+interactive browser, Up/Down wraps through the available recordings; Enter
+opens the highlighted row, typing a number followed by Enter opens that exact
+row, and `q` cancels without stopping the current replay.
 
 ## Controls
 
