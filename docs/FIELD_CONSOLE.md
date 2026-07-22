@@ -323,8 +323,10 @@ not need the ZED SDK. From the workstation, browse and select a finalized file:
 Use `--list`, `--index N`, or `--svo /absolute/jetson/path.svo2` to select an
 older file; use `--latest` to skip the default interactive directory. Replay
 starts paused at frame zero and provides local keys for
-play/pause, seeking, stepping, speed, RViz reopen, and safe shutdown. The
-playback launcher validates the SVO2 before opening it. See
+play/pause, speed, dataset selection, RViz reopen, and safe shutdown.
+Interactive seeking and stepping are intentionally disabled because the ZED
+wrapper did not provide usable seek latency under this rig's NEURAL replay
+load. The playback launcher validates the SVO2 before opening it. See
 `docs/REMOTE_REPLAY.md` for the complete offline workflow.
 
 ## Direct fallback

@@ -19,9 +19,6 @@ NO_RVIZ=false
 DRY_RUN=false
 ACTION=console
 RVIZ_PID=""
-CURRENT_FRAME=0
-CURRENT_TOTAL=0
-CURRENT_FPS=15
 RUNTIME_BASE="${XDG_RUNTIME_DIR:-/tmp/zed-replay-console-$(id -u)}"
 CONTROL_PATH="$RUNTIME_BASE/zed-field-ssh-%C"
 RVIZ_LOG="$RUNTIME_BASE/zed-replay-rviz-$(id -u).log"
@@ -30,7 +27,7 @@ TTY_STATE=""
 FOOTER_DRAWN=false
 STATUS_TEXT="REPLAY STARTING"
 STATUS_STYLE="1;33"
-CONTROL_TEXT="Keys: Space/p play-pause | o open dataset | ←/→ 1s | ,/. frame | -/+ speed | i info | v RViz | q quit"
+CONTROL_TEXT="Keys: Space/p play-pause | -/+ speed | o open dataset | i info | v RViz | q quit"
 STATUS_INTERVAL=1
 NOTICE_TEXT=""
 NOTICE_STYLE="1;32"
@@ -84,17 +81,16 @@ Options:
 
 Interactive keys:
   Space or p   Play/pause
-  Left/Right  Step backward/forward one second and pause
-  , and .     Step backward/forward one frame and pause
-  j and l     Step backward/forward one second and pause
-  J and L     Step backward/forward ten seconds and pause
   - and +     Decrease/increase playback speed (0.1x to 5x)
-  0           Pause and return to frame zero
   o           Open the remote dataset browser and switch recordings
   i           Detailed replay status
-  v           Reopen RViz and refresh the current frame
+  v           Reopen RViz and refresh the paused current frame
   h           Show keys
   q           Stop Jetson replay and close RViz
+
+Frame seeking and scrubbing are deliberately not exposed. On this rig, the
+ZED wrapper can block a seek behind an HD1200 NEURAL grab for many seconds.
+Reopen the dataset with o and use a slower playback rate instead.
 
 Ctrl+C, terminal closure, or Wi-Fi loss leaves replay running for reconnection.
 Only q or --stop shuts down the named Jetson replay unit.
@@ -107,11 +103,9 @@ key_help() {
   echo
   echo "Terminal focus required for replay keys."
   echo "  Space/p    play or pause"
-  echo "  Left/Right or j/l    step -/+ 1 second (pauses)"
-  echo "  ,/.        step -/+ 1 frame (pauses)"
-  echo "  J/L        step -/+ 10 seconds (pauses)"
   echo "  -/+        slower/faster (0.1x to 5x)"
-  echo "  o open dataset  0 restart  i status  v reopen RViz  h help  q safe quit"
+  echo "  o open dataset  i status  v reopen RViz  h help  q safe quit"
+  echo "  Scrubbing is disabled: reopen with o and replay more slowly."
 }
 
 shell_join() {
@@ -433,9 +427,6 @@ status_line() {
   [[ "$frame" =~ ^[0-9]+$ ]] || frame=0
   [[ "$total" =~ ^[0-9]+$ ]] || total=0
   [[ "$fps" =~ ^[1-9][0-9]*$ ]] || fps=15
-  CURRENT_FRAME="$frame"
-  CURRENT_TOTAL="$total"
-  CURRENT_FPS="$fps"
   now="$(date +%s)"
   progress_age=0
   if [[ "$state" == PLAYING ]]; then
@@ -528,7 +519,7 @@ open_dataset() {
   if ! $NO_RVIZ; then
     wait_for_topics || return 1
     start_rviz || return 1
-    if ! remote_session seek 0 >/dev/null; then
+    if ! remote_session _refresh-current-frame >/dev/null; then
       echo "Replay opened, but the initial frame refresh timed out; controls remain available." >&2
     fi
   fi
@@ -625,9 +616,9 @@ if ! $NO_RVIZ; then
     echo "RViz failed; Jetson replay was left paused for inspection." >&2
     die "RViz failed to remain open"
   fi
-  # Status topics are volatile. Seeking the paused current frame after RViz
-  # subscribes guarantees visible RGB/depth/cloud on the first screen.
-  if ! remote_session seek 0 >/dev/null; then
+  # Status topics are volatile. Republishing the paused current frame after
+  # RViz subscribes guarantees visible RGB/depth/cloud on the first screen.
+  if ! remote_session _refresh-current-frame >/dev/null; then
     echo "Initial RViz frame refresh timed out; replay controls remain available." >&2
   fi
 fi
@@ -650,8 +641,6 @@ while true; do
       sequence=""
       IFS= read -rsn2 -t 0.15 sequence || true
       case "$sequence" in
-        '[D') key=j ;;
-        '[C') key=l ;;
         '[A') key='+' ;;
         '[B') key='-' ;;
         *) key="" ;;
@@ -660,19 +649,14 @@ while true; do
     clear_footer
     case "$key" in
       ' '|p|P) run_control "Changing play/pause state" pause-toggle || true ;;
-      ',') run_control "Seeking back one frame" step -1 || true ;;
-      '.') run_control "Seeking forward one frame" step 1 || true ;;
-      j) run_control "Seeking back one second" step "-$CURRENT_FPS" || true ;;
-      l) run_control "Seeking forward one second" step "$CURRENT_FPS" || true ;;
-      J) run_control "Seeking back ten seconds" step "$((-10 * CURRENT_FPS))" || true ;;
-      L) run_control "Seeking forward ten seconds" step "$((10 * CURRENT_FPS))" || true ;;
       -|'_') run_control "Reducing playback speed" speed down || true ;;
       +|'=') run_control "Increasing playback speed" speed up || true ;;
-      0) run_control "Returning to the first frame" restart || true ;;
       o|O) open_dataset || true ;;
       i|I) detailed_status || true ;;
       v|V)
-        if start_rviz; then remote_session seek "$CURRENT_FRAME" >/dev/null || true; fi
+        if start_rviz; then
+          run_control "Refreshing the paused RViz frame" _refresh-current-frame || true
+        fi
         ;;
       h|H|'?') key_help ;;
       q|Q) safe_quit ;;

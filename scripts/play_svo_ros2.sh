@@ -23,7 +23,7 @@ Copy/paste latest known-good rig recording:
 Options:
   --profile PATH  ROS parameter override (default: $PROFILE)
   --loop          Loop playback
-  --controlled    Enable pause, seek, step, and dynamic replay-rate controls
+  --controlled    Enable pause and dynamic replay-rate controls
   --rate RATE     Controlled playback speed, 0.1-5.0 (default: $RATE)
   --dry-run       Validate and print the command without opening the SVO2
   -h, --help      Show this help
@@ -78,8 +78,8 @@ if ! grep -q 'SVO Infos : SVO v 2' <<<"$info" ||
 fi
 
 if $CONTROLLED; then
-  # Non-real-time mode exposes pause and frame-seek services. Wall-clock
-  # timestamps allow seeking, looping, and dynamic replay-rate changes.
+  # Non-real-time mode enables pause and dynamic replay rate. Wall-clock
+  # timestamps also permit looping without reusing stale SVO timestamps.
   overrides="svo.svo_loop:=$LOOP;svo.svo_realtime:=false;svo.use_svo_timestamps:=false;svo.replay_rate:=$RATE"
 elif $LOOP; then
   # The wrapper deliberately ignores svo_loop while original SVO timestamps

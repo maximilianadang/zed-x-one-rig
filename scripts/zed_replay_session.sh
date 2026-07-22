@@ -35,9 +35,6 @@ Commands:
   status [--machine]                     Show file, frame, time, rate, and state
   pause-toggle                            Toggle paused/playing
   pause | play                            Set an explicit playback state
-  step FRAMES                             Pause and move by signed frame count
-  seek FRAME                              Seek to an absolute zero-based frame
-  restart                                 Pause and seek to frame zero
   speed up|down|RATE                      Change playback speed from 0.1x to 5x
   stop                                    Stop the transient replay unit
   logs                                    Show recent replay-unit logs
@@ -350,7 +347,7 @@ pause_toggle() {
   lock_commands
   require_active
   if [[ "$(monitor_value STATUS)" == END ]]; then
-    call_seek 0 || die "Could not restart playback from the end"
+    die "Replay reached the end; reopen the dataset from the field console"
   else
     call_pause_toggle || die "Pause/play request failed"
   fi
@@ -367,7 +364,7 @@ set_play_state() {
     [[ "$current" == PAUSED ]] || call_pause_toggle || die "Pause request failed"
   else
     if [[ "$current" == END ]]; then
-      call_seek 0 || die "Could not restart playback"
+      die "Replay reached the end; reopen the dataset from the field console"
     elif [[ "$current" == PAUSED ]]; then
       call_pause_toggle || die "Play request failed"
     fi
@@ -376,44 +373,15 @@ set_play_state() {
   print_status
 }
 
-seek_absolute() {
-  local frame="$1" total
-  [[ "$frame" =~ ^[0-9]+$ ]] || die "Frame must be a non-negative integer: $frame"
+refresh_current_frame() {
+  local current
   lock_commands
   require_active
-  total="$(state_value session.frames)"
-  ((frame < total)) || frame=$((total - 1))
-  call_seek "$frame" || die "Seek request failed"
-  sleep 0.3
-  print_status
-}
-
-step_frames() {
-  local delta="$1" current total target
-  [[ "$delta" =~ ^-?[0-9]+$ ]] || die "Step must be a signed frame count: $delta"
-  lock_commands
-  require_active
-  ensure_paused || die "Could not pause before stepping"
+  ensure_paused || die "Could not pause before refreshing the current frame"
   current="$(monitor_value FRAME_ID)"
-  total="$(state_value session.frames)"
   current="${current:-0}"
-  target=$((current + delta))
-  ((target >= 0)) || target=0
-  ((target < total)) || target=$((total - 1))
   sleep 0.55
-  call_seek "$target" || die "Step request failed"
-  sleep 0.3
-  print_status
-}
-
-restart_playback() {
-  lock_commands
-  require_active
-  ensure_paused || die "Could not pause before restart"
-  sleep 0.55
-  call_seek 0 || die "Could not seek to frame zero"
-  sleep 0.3
-  print_status
+  call_seek "$current" || die "Could not refresh the current frame"
 }
 
 next_rate() {
@@ -475,10 +443,8 @@ case "$command" in
   pause-toggle) pause_toggle ;;
   pause) set_play_state PAUSED ;;
   play) set_play_state PLAYING ;;
-  step) step_frames "${1:-}" ;;
-  seek) seek_absolute "${1:-}" ;;
-  restart) restart_playback ;;
   speed) set_speed "${1:-}" ;;
+  _refresh-current-frame) refresh_current_frame ;;
   stop) stop_session ;;
   logs) show_logs ;;
   -h|--help|help) usage ;;

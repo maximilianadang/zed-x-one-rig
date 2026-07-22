@@ -133,7 +133,9 @@ then RViz from the remote workstation:
 ```
 
 Browse the Jetson's finalized recordings and replay one headlessly from the
-same workstation, with pause, seek, step, speed, loop, status, and RViz controls:
+same workstation, with pause, speed, dataset selection, loop, status, and RViz
+controls. Interactive seeking is intentionally disabled on this rig because it
+does not respond within a usable field-control latency:
 
 ```bash
 ./scripts/zed_replay_console.sh --jetson zed-jetson
