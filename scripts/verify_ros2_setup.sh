@@ -162,12 +162,15 @@ if $RUNTIME && ((failures == 0)); then
   viewer_bridge=false
   viewer_rgb_info="$(timeout 10s ros2 topic info --no-daemon /zed_field/rgb/image 2>&1)"
   viewer_depth_info="$(timeout 10s ros2 topic info --no-daemon /zed_field/depth/image 2>&1)"
+  viewer_cloud_info="$(timeout 10s ros2 topic info --no-daemon /zed_field/point_cloud/cloud_registered 2>&1)"
   if grep -Fq 'Type: sensor_msgs/msg/Image' <<<"$viewer_rgb_info" &&
      grep -Eq 'Publisher count: [1-9]' <<<"$viewer_rgb_info" &&
      grep -Fq 'Type: sensor_msgs/msg/Image' <<<"$viewer_depth_info" &&
-     grep -Eq 'Publisher count: [1-9]' <<<"$viewer_depth_info"; then
+     grep -Eq 'Publisher count: [1-9]' <<<"$viewer_depth_info" &&
+     grep -Fq 'Type: sensor_msgs/msg/PointCloud2' <<<"$viewer_cloud_info" &&
+     grep -Eq 'Publisher count: [1-9]' <<<"$viewer_cloud_info"; then
     viewer_bridge=true
-    pass "runtime viewer bridge: compressed LAN images -> local raw images"
+    pass "runtime viewer bridges: compressed LAN images/cloud -> local raw topics"
   fi
 
   rate_dir="$(mktemp -d /tmp/zed-ros2-rates.XXXXXX)"
@@ -175,7 +178,7 @@ if $RUNTIME && ((failures == 0)); then
     rate_topics=(
       /zed_field/rgb/image
       /zed_field/depth/image
-      /zed/zed_node/point_cloud/cloud_registered
+      /zed_field/point_cloud/cloud_registered
     )
   else
     rate_topics=(

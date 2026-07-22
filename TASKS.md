@@ -22,7 +22,7 @@ The completed ROS 2 viewing plan is preserved at
 | T0 | Jetson complete; receiver pending | Transient user unit, lock/state/log paths, SSH fail-closed behavior, persistence guard, storage, and timeouts are proven. Receiver facts still require that machine. |
 | T1 | Lossless passed; lossy rejected | Lossless produced 523 indexed frames and replayed with NEURAL depth. H.264/H.265 rejected every frame, including ULTRAFAST/async/no-IPC. |
 | T2 | Complete | Jetson helper passed view, attach, refusal, recording, validation, stop, and camera-release gates. |
-| T3 | Implemented; receiver acceptance pending | Console key lifecycle passed a simulated SSH session. Actual receiver SSH/DDS/RViz remains external. |
+| T3 | Implemented; receiver retry pending | Actual receiver proved SSH/DDS/cold start, exposing exit-status, image-health, and q-cleanup bugs. All fixes now pass local acceptance; receiver must pull and repeat. |
 | T4-T5 | Pending external networks | AsteraMesh receiver plus Mars/MarsLink topology and recovery tests require the viewing computer/networks. |
 | T6 | In progress | Offline docs, help, and static checks are being finalized; cross-machine rehearsal remains pending. |
 
@@ -328,8 +328,15 @@ The completed ROS 2 viewing plan is preserved at
   - **Implementation result:** the console and full copy/paste help are present.
     A simulated SSH target exercised view-only startup and `r/i/s/q` successfully;
     SSH host-key failure also failed closed without changing Jetson state. The
-    gate remains open until the actual receiver proves SSH, DDS topics, RViz,
-    clean exit, and lack of orphan processes.
+    first actual receiver cold start proved SSH and DDS but exposed a successful
+    Jetson status being returned as failure; commit `ebcc1f9` corrected it. The
+    next receiver run exposed blank image bridges, raw-cloud degradation, and q
+    cleanup/input races. The revised launcher requires real RGB/depth/cloud
+    messages and RViz subscriptions, uses Draco for the preview cloud, isolates
+    the viewer process group, bounds shutdown, and prevents SSH from consuming
+    terminal keys. Local acceptance reached the readiness gate on all three
+    streams and the isolated group exited after SIGINT. The gate remains open
+    until the actual receiver repeats RViz, recording, q, and orphan checks.
 
 - [ ] **T4 - prove interactive recording and recovery on AsteraMesh.**
   - Exercise each accepted preset from the workstation while RViz displays all

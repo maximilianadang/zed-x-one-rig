@@ -93,7 +93,7 @@ Visualization Manager:
         Filter size: 1
         History Policy: Keep Last
         Reliability Policy: Best Effort
-        Value: /zed/zed_node/point_cloud/cloud_registered
+        Value: /zed_field/point_cloud/cloud_registered
       Use Fixed Frame: true
       Use rainbow: false
       Value: true

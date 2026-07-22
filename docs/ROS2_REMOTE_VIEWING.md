@@ -101,8 +101,10 @@ cd /path/to/zed-x-one-rig
 
 It starts or attaches to one named transient Jetson session, proves the ROS
 topics are visible, opens RViz, and supplies explicit lossless record/finalize
-keys. Startup is view-only. A control or RViz failure leaves the independent
-Jetson session intact for reconnection.
+keys. Startup is view-only. Initial startup must pass RGB, depth, and point-cloud
+message health checks or it stops the newly created Jetson unit. After that
+gate, a control disconnect or RViz failure leaves the independent session intact
+for reconnection.
 
 ## Manual live remote viewing fallback
 
@@ -127,14 +129,17 @@ The launcher deliberately receives the bandwidth-saving image transports:
 
 - rectified color: `/zed/zed_node/rgb/color/rect/image/compressed`;
 - registered depth: `/zed/zed_node/depth/depth_registered/compressedDepth`;
-- colored point cloud: `/zed/zed_node/point_cloud/cloud_registered`.
+- colored point cloud: `/zed/zed_node/point_cloud/cloud_registered/draco`.
 
 Two local `image_transport republish` helpers expand the compressed messages
-into `/zed_field/rgb/image` and `/zed_field/depth/image` on the workstation for
-RViz. Raw images therefore exist only after crossing the LAN. The launcher
-stops both helpers when RViz exits. The original uncompressed ZED base topics
-remain available for local diagnosis; do not use them across field Wi-Fi
-unless you have measured enough bandwidth.
+into `/zed_field/rgb/image` and `/zed_field/depth/image`. A local
+`point_cloud_transport` helper expands Draco into
+`/zed_field/point_cloud/cloud_registered`. Raw display data therefore exists
+only on the workstation. The launcher stops all helpers when RViz exits and
+requires messages plus RViz subscriptions on all three local topics before it
+reports ready. The original uncompressed ZED base topics remain available for
+local diagnosis; do not use them across field Wi-Fi unless measured bandwidth
+supports it.
 
 The fixed viewing frame is `zed_camera_link`, so RViz uses normal ROS body
 axes: X forward, Y left, Z up. Its XY grid is therefore a horizontal reference

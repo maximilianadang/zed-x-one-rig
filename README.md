@@ -107,9 +107,9 @@ Never hot-plug or reseat a GMSL/capture-board connection while streaming.
 
 ROS 2 is the supported same-LAN remote viewing path. The Jetson computes
 NEURAL depth and publishes rectified color, registered depth, and a reduced
-colored point cloud. The supplied RViz profile selects compressed color and
-depth transports to keep LAN traffic bounded, then expands them locally for
-display. An Ubuntu 22.04 workstation uses RViz2 and does not need the ZED SDK
+colored point cloud. The supplied RViz profile selects compressed color,
+depth, and Draco point-cloud transports to keep LAN traffic bounded, then
+expands them locally for display. An Ubuntu 22.04 workstation uses RViz2 and does not need the ZED SDK
 or CUDA.
 
 One-time Jetson setup:

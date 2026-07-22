@@ -2,6 +2,8 @@
 ros-humble-compressed-depth-image-transport
 ros-humble-compressed-image-transport
 ros-humble-image-transport-plugins
+ros-humble-point-cloud-transport
+ros-humble-point-cloud-transport-plugins
 ros-humble-rmw-cyclonedds-cpp
 ros-humble-ros-base
 ros-humble-rviz2

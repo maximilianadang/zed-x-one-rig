@@ -17,7 +17,9 @@ RVIZ_PID=""
 RUNTIME_BASE="${XDG_RUNTIME_DIR:-/tmp/zed-field-console-$(id -u)}"
 CONTROL_PATH="$RUNTIME_BASE/zed-field-ssh-%C"
 RVIZ_LOG="$RUNTIME_BASE/zed-field-rviz-$(id -u).log"
+RVIZ_READY="$RUNTIME_BASE/zed-field-rviz-$(id -u).ready"
 SSH_OPTIONS=(
+  -n
   -o BatchMode=yes
   -o ConnectTimeout=8
   -o ServerAliveInterval=5
@@ -75,6 +77,7 @@ die() {
 
 key_help() {
   echo
+  echo "Terminal focus required for keys."
   echo "Keys: [r] record lossless  [s] stop/save  [i] status  [v] reopen RViz  [h] help  [q] safe quit"
 }
 
@@ -102,11 +105,22 @@ close_ssh_master() {
 }
 
 stop_rviz() {
-  if [[ -n "$RVIZ_PID" ]] && kill -0 "$RVIZ_PID" 2>/dev/null; then
-    kill -INT "$RVIZ_PID" 2>/dev/null || true
+  local deadline
+  if [[ -n "$RVIZ_PID" ]] && kill -0 -- "-$RVIZ_PID" 2>/dev/null; then
+    kill -INT -- "-$RVIZ_PID" 2>/dev/null || true
+    deadline=$((SECONDS + 10))
+    while kill -0 -- "-$RVIZ_PID" 2>/dev/null && ((SECONDS < deadline)); do
+      sleep 1
+    done
+    if kill -0 -- "-$RVIZ_PID" 2>/dev/null; then
+      kill -TERM -- "-$RVIZ_PID" 2>/dev/null || true
+      sleep 2
+    fi
+    kill -KILL -- "-$RVIZ_PID" 2>/dev/null || true
     wait "$RVIZ_PID" 2>/dev/null || true
   fi
   RVIZ_PID=""
+  rm -f -- "$RVIZ_READY"
 }
 
 detached_exit() {
@@ -136,6 +150,22 @@ source_receiver_ros() {
   export CYCLONEDDS_URI="${CYCLONEDDS_URI:-file://$ROOT/config/ros2/cyclonedds.xml}"
 }
 
+receiver_gui_preflight() {
+  local package
+  source_receiver_ros
+  if [[ -z "${DISPLAY:-}" && -z "${WAYLAND_DISPLAY:-}" ]]; then
+    die "No workstation graphical display; run the console from a terminal in its desktop session"
+  fi
+  for package in image_transport compressed_image_transport \
+    compressed_depth_image_transport point_cloud_transport \
+    draco_point_cloud_transport rviz2; do
+    ros2 pkg prefix "$package" >/dev/null 2>&1 ||
+      die "Missing receiver package $package; run: $ROOT/scripts/install_ros2_remote.sh"
+  done
+  command -v setsid >/dev/null 2>&1 ||
+    die "Missing setsid from util-linux; it is required for bounded RViz cleanup"
+}
+
 wait_for_topics() {
   local elapsed=0 topics
   source_receiver_ros
@@ -157,23 +187,38 @@ wait_for_topics() {
 }
 
 start_rviz() {
+  local elapsed
   $NO_RVIZ && return 0
   if [[ -n "$RVIZ_PID" ]] && kill -0 "$RVIZ_PID" 2>/dev/null; then
     echo "RViz is already running (PID $RVIZ_PID)."
     return 0
   fi
   : >"$RVIZ_LOG"
-  "$ROOT/scripts/start_ros2_rviz.sh" >"$RVIZ_LOG" 2>&1 &
+  rm -f -- "$RVIZ_READY"
+  ZED_RVIZ_READY_FILE="$RVIZ_READY" \
+    setsid "$ROOT/scripts/start_ros2_rviz.sh" >"$RVIZ_LOG" 2>&1 &
   RVIZ_PID=$!
-  sleep 2
-  if ! kill -0 "$RVIZ_PID" 2>/dev/null; then
-    wait "$RVIZ_PID" 2>/dev/null || true
-    RVIZ_PID=""
-    echo "RViz exited during startup. Log: $RVIZ_LOG" >&2
-    tail -n 30 "$RVIZ_LOG" >&2 || true
-    return 1
-  fi
-  echo "RViz opened (PID $RVIZ_PID; log $RVIZ_LOG)."
+  elapsed=0
+  while ((elapsed < 50)); do
+    if [[ -e "$RVIZ_READY" ]]; then
+      echo "RViz opened with healthy RGB, depth, and point cloud (PID $RVIZ_PID)."
+      echo "  Log: $RVIZ_LOG"
+      return 0
+    fi
+    if ! kill -0 "$RVIZ_PID" 2>/dev/null; then
+      wait "$RVIZ_PID" 2>/dev/null || true
+      RVIZ_PID=""
+      echo "RViz or a local data bridge failed during startup. Log: $RVIZ_LOG" >&2
+      tail -n 80 "$RVIZ_LOG" >&2 || true
+      return 1
+    fi
+    sleep 1
+    elapsed=$((elapsed + 1))
+  done
+  echo "RViz data-path health check timed out. Log: $RVIZ_LOG" >&2
+  tail -n 80 "$RVIZ_LOG" >&2 || true
+  stop_rviz
+  return 1
 }
 
 print_resolution() {
@@ -303,13 +348,21 @@ case "$ACTION" in
 esac
 
 [[ -t 0 ]] || die "Interactive console requires a terminal; use --status or --stop for automation"
+if ! $NO_RVIZ; then
+  receiver_gui_preflight
+fi
 trap detached_exit INT TERM
 trap local_cleanup EXIT
 
 remote_session start --profile "$REMOTE_PROFILE"
 if ! $NO_RVIZ; then
   wait_for_topics || die "ROS topic preflight failed"
-  start_rviz || echo "Continue with v to retry RViz; the Jetson remains in view-only mode."
+  if ! start_rviz; then
+    echo "Initial RViz acceptance failed; stopping the Jetson session to avoid an orphan." >&2
+    remote_session stop ||
+      echo "Automatic Jetson stop was not confirmed; run this console with --stop." >&2
+    die "Remote view did not pass RGB/depth/point-cloud health checks"
+  fi
 fi
 
 echo

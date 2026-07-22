@@ -47,6 +47,10 @@ because the camera or RViz is open.
 | `h` | Print the key reminder. |
 | `q` | Finalize if necessary, stop the exact Jetson unit, close RViz, and confirm both cameras are available. |
 
+These keys are read by the terminal controller. Focus the terminal—not the
+RViz window—before pressing them. SSH control commands have stdin disabled so
+they cannot consume a key intended for the controller.
+
 `Ctrl+C`, a closed laptop, lost Wi-Fi, a dead SSH connection, or an RViz crash
 does **not** stop the Jetson session or an active recording. This is deliberate:
 it avoids corrupting a capture because its control connection disappeared.
@@ -56,7 +60,7 @@ Reconnect with the same field command; it attaches to the named session. Press
 ## One-time workstation setup while online
 
 The viewing computer needs Ubuntu 22.04, this repository, ROS 2 Humble,
-Cyclone DDS, RViz2, and the image transports. It does not need the ZED SDK,
+Cyclone DDS, RViz2, image transports, and point-cloud transports. It does not need the ZED SDK,
 CUDA, or VNC.
 
 ```bash
@@ -140,6 +144,17 @@ The reduced 960x600/5 Hz images and reduced 2 Hz point cloud shown in RViz are
 preview products only. They are not what the SVO2 records. The SVO2 preserves
 the synchronized native stereo images so depth can be recomputed later.
 
+The LAN carries compressed RGB, compressed depth, and the wrapper's Draco
+point-cloud transport. The workstation expands all three into ordinary local
+ROS topics for RViz. On this rig the raw reduced point cloud measured about
+974 KB/s, while Draco measured about 12-14 KB/s and decoded at the full 2 Hz
+preview rate. This affects only visualization transport, never SVO2 contents.
+
+Initial startup is accepted only after actual messages reach all three local
+RViz topics and RViz has subscribed to them. If that health gate fails, the
+console reports the local log and stops the new Jetson session instead of
+leaving an orphaned camera owner.
+
 ## Status, attach, and safe stop without RViz
 
 From the workstation:
@@ -178,7 +193,8 @@ Never kill the ROS wrapper while it reports an active recording. Use
 - **SSH works but ROS topics are missing:** the camera may be fine. Check ROS
   domain 42, Cyclone DDS, workstation firewall, AP/client isolation, and LAN
   multicast. The console leaves the Jetson session running.
-- **RViz closes:** press `v`. Camera ownership and recording are unchanged.
+- **RViz closes after a healthy startup:** focus the controller terminal and
+  press `v`. Camera ownership and recording are unchanged.
 - **Low-space refusal:** move or archive data from `/home/dusty/Videos/ZED/`;
   do not bypass the reserve casually.
 - **Temporary `.recording.svo2` remains:** finalization or validation was not
