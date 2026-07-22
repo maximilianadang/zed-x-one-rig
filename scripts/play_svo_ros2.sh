@@ -7,6 +7,8 @@ source "$ROOT/scripts/ros2_common.sh"
 
 PROFILE="$ZED_ROS_PROFILE"
 LOOP=false
+CONTROLLED=false
+RATE="1.0"
 DRY_RUN=false
 SVO=""
 
@@ -21,6 +23,8 @@ Copy/paste latest known-good rig recording:
 Options:
   --profile PATH  ROS parameter override (default: $PROFILE)
   --loop          Loop playback
+  --controlled    Enable pause, seek, step, and dynamic replay-rate controls
+  --rate RATE     Controlled playback speed, 0.1-5.0 (default: $RATE)
   --dry-run       Validate and print the command without opening the SVO2
   -h, --help      Show this help
 
@@ -33,6 +37,8 @@ while (($#)); do
   case "$1" in
     --profile) PROFILE="$2"; shift ;;
     --loop) LOOP=true ;;
+    --controlled) CONTROLLED=true ;;
+    --rate) RATE="${2:-}"; shift ;;
     --dry-run) DRY_RUN=true ;;
     -h|--help) usage; exit 0 ;;
     -*) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
@@ -49,6 +55,14 @@ SVO="$(realpath "$SVO")"
 [[ -r "$SVO" ]] || { echo "Unreadable SVO2: $SVO" >&2; exit 1; }
 [[ "$SVO" == *.svo || "$SVO" == *.svo2 ]] || { echo "Expected a .svo or .svo2 file." >&2; exit 1; }
 [[ -r "$PROFILE" ]] || { echo "Missing ROS profile: $PROFILE" >&2; exit 1; }
+[[ "$RATE" =~ ^([0-4]([.][0-9]+)?|5([.]0+)?|[.]([0-9]+))$ ]] || {
+  echo "Replay rate must be numeric and between 0.1 and 5.0: $RATE" >&2
+  exit 1
+}
+awk -v rate="$RATE" 'BEGIN {exit !(rate >= 0.1 && rate <= 5.0)}' || {
+  echo "Replay rate must be between 0.1 and 5.0: $RATE" >&2
+  exit 1
+}
 
 zed_ros_check_calibration
 zed_ros_source_environment
@@ -63,7 +77,11 @@ if ! grep -q 'SVO Infos : SVO v 2' <<<"$info" ||
   exit 1
 fi
 
-if $LOOP; then
+if $CONTROLLED; then
+  # Non-real-time mode exposes pause and frame-seek services. Wall-clock
+  # timestamps allow seeking, looping, and dynamic replay-rate changes.
+  overrides="svo.svo_loop:=$LOOP;svo.svo_realtime:=false;svo.use_svo_timestamps:=false;svo.replay_rate:=$RATE"
+elif $LOOP; then
   # The wrapper deliberately ignores svo_loop while original SVO timestamps
   # are enabled. Looping therefore needs wall-clock timestamps.
   overrides="svo.svo_loop:=true;svo.svo_realtime:=true;svo.use_svo_timestamps:=false"
@@ -100,6 +118,8 @@ echo "  Frames:      $frames"
 echo "  Virtual:     $VIRTUAL_SERIAL"
 echo "  Depth:       NEURAL"
 echo "  Loop:        $LOOP"
+echo "  Controlled:  $CONTROLLED"
+echo "  Rate:        ${RATE}x"
 echo "  ROS domain:  $ROS_DOMAIN_ID"
 echo
 echo "Press Ctrl+C to stop playback."

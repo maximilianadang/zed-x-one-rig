@@ -60,9 +60,16 @@ if ((failures == 0)); then
 fi
 
 for script in start_ros2_virtual_stereo.sh play_svo_ros2.sh start_ros2_rviz.sh \
-  zed_field_session.sh zed_field_console.sh; do
+  zed_field_session.sh zed_field_console.sh zed_replay_session.sh \
+  run_svo_replay_session.sh zed_replay_console.sh; do
   if [[ -x "$ROOT/scripts/$script" ]]; then pass "executable: scripts/$script"; else fail "not executable: scripts/$script"; fi
 done
+
+if [[ -x "$ROOT/tools/zed_svo_status_monitor.py" && -x "$ROOT/tools/zed_replay_command.py" ]]; then
+  pass "executable: replay monitor and command client"
+else
+  fail "replay monitor or command client is not executable"
+fi
 
 if [[ -r "$ROOT/config/field_console.env" ]]; then
   pass "field-console configuration"

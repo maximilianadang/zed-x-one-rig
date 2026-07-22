@@ -132,15 +132,17 @@ then RViz from the remote workstation:
 ./scripts/start_ros2_rviz.sh
 ```
 
-Replay a recording through the same remote display:
+Replay the newest recording headlessly from the same workstation, with pause,
+seek, step, speed, loop, status, and RViz controls:
 
 ```bash
-./scripts/play_svo_ros2.sh \
-  /home/dusty/Videos/ZED/virtual_stereo_20260717_162826.svo2
+./scripts/zed_replay_console.sh --jetson zed-jetson
 ```
 
 See [docs/ROS2_REMOTE_VIEWING.md](docs/ROS2_REMOTE_VIEWING.md) for installation,
 offline caches, field operation, discovery checks, and recovery.
+See [docs/REMOTE_REPLAY.md](docs/REMOTE_REPLAY.md) for replay controls and
+recording selection.
 
 ## Repository contents
 

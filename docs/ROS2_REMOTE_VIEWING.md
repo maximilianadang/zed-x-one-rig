@@ -156,30 +156,39 @@ ZED_Explorer --all
 
 ## Remote SVO2 viewing
 
-The raw `.svo2` remains on the Jetson. The Jetson opens it with the ZED SDK,
-recomputes NEURAL depth, and publishes the same ROS topics used for live data.
-The remote workstation continues using the same RViz command.
-
-On the Jetson:
-
-```bash
-./scripts/play_svo_ros2.sh \
-  /home/dusty/Videos/ZED/virtual_stereo_20260717_162826.svo2
-```
-
-Loop the recording:
+The raw `.svo2` remains on the Jetson. The Jetson opens it headlessly with the
+ZED SDK, recomputes NEURAL depth, and publishes the same ROS topics used for
+live data. From the remote workstation, the normal one-command route replays
+the newest finalized recording:
 
 ```bash
-./scripts/play_svo_ros2.sh --loop \
-  /home/dusty/Videos/ZED/virtual_stereo_20260717_162826.svo2
+./scripts/zed_replay_console.sh --jetson zed-jetson
 ```
 
-The launcher first uses `ZED_SVO_Editor -inf` and refuses files that have no
-indexed frames or do not report virtual serial `116863460`.
+List recordings or select the third-newest:
+
+```bash
+./scripts/zed_replay_console.sh --jetson zed-jetson --list
+./scripts/zed_replay_console.sh --jetson zed-jetson --index 3
+```
+
+Select an exact Jetson path and loop it:
+
+```bash
+./scripts/zed_replay_console.sh --jetson zed-jetson --loop \
+  --svo /home/dusty/Videos/ZED/virtual_stereo_20260717_162826.svo2
+```
+
+Replay starts paused at frame zero, opens RViz, and refreshes the paused frame
+after RViz subscribes. The terminal provides play/pause, single-frame and timed
+steps, restart, 0.1x-5x speed changes, status, RViz reopen, and safe shutdown.
+The launcher validates the SVO2 with `ZED_SVO_Editor -inf` and refuses files
+with no indexed frames or a virtual serial other than `116863460`.
 
 The remote workstation does not need the proprietary `.svo2` codec because it
 receives standard ROS image, depth, and point-cloud messages. Opening the raw
 file directly on the remote workstation would still require the ZED SDK.
+See [REMOTE_REPLAY.md](REMOTE_REPLAY.md) for exact controls and recovery.
 
 ## Verify ROS discovery before opening RViz
 

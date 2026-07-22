@@ -351,12 +351,18 @@ cd /home/dusty/workspace/terraforming_mars/zed-x-one-rig
 ./scripts/start_ros2_rviz.sh
 ```
 
-Replay the latest validated recording instead of opening live cameras:
+From the ThinkPad, replay the newest finalized recording instead of opening
+live cameras:
 
 ```bash
-./scripts/play_svo_ros2.sh \
-  /home/dusty/Videos/ZED/virtual_stereo_20260717_162826.svo2
+./scripts/zed_replay_console.sh --jetson zed-jetson
 ```
+
+This headless workflow starts paused at frame zero and provides play/pause,
+frame and timed steps, 0.1x-5x speed, restart, loop, RViz reopen, and safe-stop
+controls. Use `--list`, `--index N`, or `--svo /absolute/jetson/path.svo2` to
+select a recording. Complete offline instructions are in
+`docs/REMOTE_REPLAY.md`.
 
 The default ROS domain is `42`. Live and replay expose the same `/zed/zed_node`
 topics and use the same RViz configuration. The viewer launcher receives

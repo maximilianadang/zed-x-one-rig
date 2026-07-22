@@ -314,19 +314,17 @@ client-isolation, and multicast behavior must be measured on those networks.
 
 The lightweight workstation does not open `.svo2` itself. The Jetson replays
 the file through the same standard ROS topics, so the workstation still does
-not need the ZED SDK:
+not need the ZED SDK. From the workstation, replay the newest finalized file:
 
 ```bash
-# Jetson
-./scripts/play_svo_ros2.sh /home/dusty/Videos/ZED/RECORDING.svo2
-
-# Workstation
-./scripts/start_ros2_rviz.sh
+./scripts/zed_replay_console.sh --jetson zed-jetson
 ```
 
-The playback launcher validates the SVO2 before opening it. Stop playback with
-`Ctrl+C` on the Jetson. The interactive field console currently controls live
-camera sessions; playback selection remains this explicit two-command path.
+Use `--list`, `--index N`, or `--svo /absolute/jetson/path.svo2` to select an
+older file. Replay starts paused at frame zero and provides local keys for
+play/pause, seeking, stepping, speed, RViz reopen, and safe shutdown. The
+playback launcher validates the SVO2 before opening it. See
+`docs/REMOTE_REPLAY.md` for the complete offline workflow.
 
 ## Direct fallback
 
