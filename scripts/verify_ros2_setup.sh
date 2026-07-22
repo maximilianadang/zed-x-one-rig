@@ -169,25 +169,26 @@ if $RUNTIME && ((failures == 0)); then
   runtime_param depth.depth_stabilization 0
   runtime_param depth.point_cloud_freq 2.0
 
-  viewer_bridge=false
-  viewer_rgb_info="$(timeout 10s ros2 topic info --no-daemon /zed_field/rgb/image 2>&1)"
-  viewer_depth_info="$(timeout 10s ros2 topic info --no-daemon /zed_field/depth/image 2>&1)"
+  viewer_direct=false
+  viewer_rgb_info="$(timeout 10s ros2 topic info --no-daemon /zed/zed_node/rgb/color/rect/image/compressed 2>&1)"
+  viewer_depth_info="$(timeout 10s ros2 topic info --no-daemon /zed/zed_node/depth/depth_registered/compressedDepth 2>&1)"
   viewer_cloud_info="$(timeout 10s ros2 topic info --no-daemon /zed_field/point_cloud/cloud_registered 2>&1)"
-  if grep -Fq 'Type: sensor_msgs/msg/Image' <<<"$viewer_rgb_info" &&
-     grep -Eq 'Publisher count: [1-9]' <<<"$viewer_rgb_info" &&
-     grep -Fq 'Type: sensor_msgs/msg/Image' <<<"$viewer_depth_info" &&
-     grep -Eq 'Publisher count: [1-9]' <<<"$viewer_depth_info" &&
+  if grep -Fq 'Type: sensor_msgs/msg/CompressedImage' <<<"$viewer_rgb_info" &&
+     grep -Eq 'Subscription count: [1-9]' <<<"$viewer_rgb_info" &&
+     grep -Fq 'Type: sensor_msgs/msg/CompressedImage' <<<"$viewer_depth_info" &&
+     grep -Eq 'Subscription count: [1-9]' <<<"$viewer_depth_info" &&
      grep -Fq 'Type: sensor_msgs/msg/PointCloud2' <<<"$viewer_cloud_info" &&
-     grep -Eq 'Publisher count: [1-9]' <<<"$viewer_cloud_info"; then
-    viewer_bridge=true
-    pass "runtime viewer bridges: compressed LAN images/cloud -> local raw topics"
+     grep -Eq 'Publisher count: [1-9]' <<<"$viewer_cloud_info" &&
+     grep -Eq 'Subscription count: [1-9]' <<<"$viewer_cloud_info"; then
+    viewer_direct=true
+    pass "runtime viewer: direct compressed images plus decoded Draco cloud"
   fi
 
   rate_dir="$(mktemp -d /tmp/zed-ros2-rates.XXXXXX)"
-  if $viewer_bridge; then
+  if $viewer_direct; then
     rate_topics=(
-      /zed_field/rgb/image
-      /zed_field/depth/image
+      /zed/zed_node/rgb/color/rect/image/compressed
+      /zed/zed_node/depth/depth_registered/compressedDepth
       /zed_field/point_cloud/cloud_registered
     )
   else

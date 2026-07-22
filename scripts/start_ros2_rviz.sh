@@ -25,9 +25,10 @@ The workstation must be Ubuntu 22.04 with the receiver packages installed:
   $ROOT/scripts/install_ros2_remote.sh
 
 The remote workstation does not need the ZED SDK or CUDA.
-This launcher receives compressed color, depth, and Draco point-cloud data and
-expands them only on the workstation for RViz. It verifies all three displayed
-topics before reporting readiness. Ctrl+C closes RViz and local helpers.
+RViz subscribes directly to the ZED wrapper's compressed color and depth
+topics. A single local helper decodes Draco because Humble's PointCloud2
+display accepts only sensor_msgs/PointCloud2. The launcher verifies all three
+displayed streams before reporting readiness. Ctrl+C closes RViz and the helper.
 EOF
 }
 
@@ -105,19 +106,9 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-# Humble RViz's image-transport display emits a noisy compatibility error for
-# compressedDepth. These two local bridges keep compressed data on the LAN and
-# give RViz ordinary Image topics without requiring the ZED SDK.
-ros2 run image_transport republish compressed raw --ros-args \
-  --remap in/compressed:=/zed/zed_node/rgb/color/rect/image/compressed \
-  --remap out:=/zed_field/rgb/image &
-pids+=("$!")
-
-ros2 run image_transport republish compressedDepth raw --ros-args \
-  --remap in/compressedDepth:=/zed/zed_node/depth/depth_registered/compressedDepth \
-  --remap out:=/zed_field/depth/image &
-pids+=("$!")
-
+# RViz's Image display is itself an image_transport subscriber. Giving it the
+# transport-suffixed ZED topics makes it select compressed/compressedDepth
+# directly, without intermediate raw-image publishers or extra DDS endpoints.
 ros2 run point_cloud_transport republish --ros-args \
   -p in_transport:=draco \
   -p out_transport:=raw \
@@ -137,15 +128,15 @@ kill -0 "$rviz_pid" 2>/dev/null || {
 
 health_dir="$(mktemp -d /tmp/zed-rviz-health.XXXXXX)"
 health_topics=(
-  /zed_field/rgb/image
-  /zed_field/depth/image
+  /zed/zed_node/rgb/color/rect/image/compressed
+  /zed/zed_node/depth/depth_registered/compressedDepth
   /zed_field/point_cloud/cloud_registered
 )
 health_failed=false
 for i in "${!health_topics[@]}"; do
   if ! timeout 20s ros2 topic echo --once "${health_topics[$i]}" --field header \
     >"$health_dir/$i" 2>&1; then
-    echo "No message reached RViz topic: ${health_topics[$i]}" >&2
+    echo "No message reached RViz stream: ${health_topics[$i]}" >&2
     sed -n '1,30p' "$health_dir/$i" >&2
     health_failed=true
   fi
@@ -157,7 +148,7 @@ for topic in "${health_topics[@]}"; do
   info="$(timeout 8s ros2 topic info --no-daemon "$topic" 2>&1)"
   if ! grep -Eq 'Publisher count: [1-9]' <<<"$info" ||
      ! grep -Eq 'Subscription count: [1-9]' <<<"$info"; then
-    echo "RViz is not connected to healthy local topic: $topic" >&2
+    echo "RViz is not connected to healthy stream: $topic" >&2
     printf '%s\n' "$info" >&2
     exit 1
   fi

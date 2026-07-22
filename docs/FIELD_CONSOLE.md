@@ -150,11 +150,13 @@ layout overrides or closes a dock, use RViz's **View** menu to re-enable `RGB`
 and `Depth`, then press `v` in the field console to reload the shipped layout.
 
 The LAN carries compressed RGB, compressed depth, and the wrapper's Draco
-point-cloud transport. The workstation expands all three into ordinary local
-ROS topics for RViz. On this rig the raw reduced point cloud measured about
-974 KB/s, while the current scene's Draco stream measured about 140 KB/s and
-decoded at the full 2 Hz preview rate. Draco size varies with scene content.
-This affects only visualization transport, never SVO2 contents.
+point-cloud transport. RViz subscribes directly to the wrapper's compressed
+RGB and compressed-depth topics. One workstation helper expands Draco into an
+ordinary local `PointCloud2`, because this Humble RViz PointCloud2 display does
+not consume `point_cloud_transport` directly. On this rig the raw reduced point
+cloud measured about 974 KB/s, while the current scene's Draco stream measured
+about 140 KB/s and decoded at the full 2 Hz preview rate. Draco size varies with
+scene content. This affects only visualization transport, never SVO2 contents.
 
 The Jetson camera publisher uses `config/ros2/cyclonedds-jetson.xml`, which
 caps UDP payloads at 1400 bytes on the 1500-byte field-LAN MTU. Cyclone DDS then

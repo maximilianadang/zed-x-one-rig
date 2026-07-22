@@ -131,15 +131,16 @@ The launcher deliberately receives the bandwidth-saving image transports:
 - registered depth: `/zed/zed_node/depth/depth_registered/compressedDepth`;
 - colored point cloud: `/zed/zed_node/point_cloud/cloud_registered/draco`.
 
-Two local `image_transport republish` helpers expand the compressed messages
-into `/zed_field/rgb/image` and `/zed_field/depth/image`. A local
-`point_cloud_transport` helper expands Draco into
-`/zed_field/point_cloud/cloud_registered`. Raw display data therefore exists
-only on the workstation. The launcher stops all helpers when RViz exits and
-requires messages plus RViz subscriptions on all three local topics before it
-reports ready. The original uncompressed ZED base topics remain available for
-local diagnosis; do not use them across field Wi-Fi unless measured bandwidth
-supports it.
+RViz's Image displays subscribe directly to the first two transport-suffixed
+topics and decode them through the standard `image_transport` plugins. There
+are no intermediate RGB/depth republisher nodes or raw image DDS topics. A
+single local `point_cloud_transport` helper expands Draco into
+`/zed_field/point_cloud/cloud_registered`, because this Humble PointCloud2
+display accepts only `sensor_msgs/PointCloud2`. The launcher stops that helper
+when RViz exits and requires messages plus RViz subscriptions on all three
+streams before it reports ready. The original uncompressed ZED base topics
+remain available for local diagnosis; do not use them across field Wi-Fi unless
+measured bandwidth supports it.
 
 The fixed viewing frame is `zed_camera_link`, so RViz uses normal ROS body
 axes: X forward, Y left, Z up. Its XY grid is therefore a horizontal reference

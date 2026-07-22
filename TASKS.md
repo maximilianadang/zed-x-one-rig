@@ -343,8 +343,13 @@ The completed ROS 2 viewing plan is preserved at
     1500-byte Wi-Fi MTU; measured samples were about 174 KB RGB, 60 KB depth,
     and 69 KB Draco. A Jetson-specific profile now caps initial and retransmit
     UDP payloads at 1400 bytes with 1344-byte DDSI fragments and unicast user
-    data. The gate remains open until the actual receiver repeats visible
-    images, recording, q, and orphan checks.
+    data. A retry delivered one frozen RGB frame and no depth before the failed
+    health gate stopped the session. The receiver has therefore been simplified:
+    RViz now subscribes directly to the wrapper's standard `/compressed` and
+    `/compressedDepth` image transports; both image republisher processes and
+    their raw DDS topics were removed. Only the required Draco-to-PointCloud2
+    decoder remains. The gate remains open until the actual receiver repeats
+    visible images, recording, q, and orphan checks.
 
 - [ ] **T4 - prove interactive recording and recovery on AsteraMesh.**
   - Exercise each accepted preset from the workstation while RViz displays all

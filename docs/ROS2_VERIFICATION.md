@@ -108,9 +108,9 @@ topics. At the measured live rates their nominal payload is approximately:
 - reduced XYZRGB cloud: 224 x 128 x 16 x 1.995 = 0.92 MB/s.
 
 That is about 20.8 MB/s before DDS overhead, which is why the committed RViz
-launcher selects `compressed` for color and `compressedDepth` for depth. It
-expands both into workstation-local raw topics for RViz. The reduced point
-cloud remains a standard `PointCloud2` topic.
+launcher subscribes directly with `compressed` for color and `compressedDepth`
+for depth. Only the Draco cloud needs a workstation-local decoder to become the
+standard `PointCloud2` consumed by this Humble RViz display.
 
 ## Acceptance still requiring external hardware
 
