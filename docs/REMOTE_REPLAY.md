@@ -62,7 +62,7 @@ not confirmed as finalized. Selection index `1` always means newest.
 | `-` / `+` | Reduce/increase playback speed through 0.1x–5x presets. |
 | `o` | Open the remote dataset directory and switch recordings. |
 | `i` | Print detailed file, frame, loop, speed, and unit status. |
-| `v` | Reopen RViz and republish the current paused frame. |
+| `v` | Restart RViz without seeking or changing replay position. |
 | `h` | Print the key reference. |
 | `q` | Stop the named Jetson replay unit and close RViz. |
 
@@ -114,9 +114,9 @@ can therefore advance video time more slowly than wall time when RGB, depth,
 and point-cloud subscribers are active. Read the footer's `OUTPUT≈...fps`
 measurement to distinguish slow processing from a stopped unit.
 
-Frame positioning is used internally only while opening a dataset at frame zero
-or refreshing a paused frame after RViz reconnects. The console does not expose
-it as a scrubbing control.
+Frame positioning is used internally only while initially opening a dataset at
+frame zero. The console does not expose it as a scrubbing or RViz-reconnect
+control.
 
 For a weaker or congested field network, begin at half-rate to reduce the
 publication target and use `+` later if the link is healthy:

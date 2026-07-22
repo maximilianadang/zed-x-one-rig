@@ -84,7 +84,7 @@ Interactive keys:
   - and +     Decrease/increase playback speed (0.1x to 5x)
   o           Open the remote dataset browser and switch recordings
   i           Detailed replay status
-  v           Reopen RViz and refresh the paused current frame
+  v           Reopen RViz without seeking
   h           Show keys
   q           Stop Jetson replay and close RViz
 
@@ -654,8 +654,9 @@ while true; do
       o|O) open_dataset || true ;;
       i|I) detailed_status || true ;;
       v|V)
+        stop_rviz
         if start_rviz; then
-          run_control "Refreshing the paused RViz frame" _refresh-current-frame || true
+          set_notice "1;32" 4 "RViz reopened without changing replay position"
         fi
         ;;
       h|H|'?') key_help ;;
