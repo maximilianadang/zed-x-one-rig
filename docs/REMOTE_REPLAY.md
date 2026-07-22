@@ -71,10 +71,18 @@ not confirmed as finalized. Selection index `1` always means newest.
 | `q` | Stop the named Jetson replay unit and close RViz. |
 
 The fixed footer shows `PLAYING`, `PAUSED`, or `END`, current and total time,
-frame position, speed, loop count, RViz state, and filename. Seeking is clamped
-to the valid frame range. Step commands always pause first. A persistent
-Jetson-side controller keeps the ROS services discovered, so each workstation
-key does not pay a fresh DDS-discovery delay.
+frame position, requested speed, measured output FPS, loop count, RViz state,
+and filename. `ZED PROCESSING` means the replay unit is still active but the
+Jetson has not completed another frame for at least five seconds. While a key
+command is pending, the footer explicitly says it is waiting for the Jetson/ZED
+SDK. Successful controls update the footer in place instead of printing a full
+status block for every key.
+
+Seeking is clamped to the valid frame range. Step commands always pause first.
+A persistent Jetson-side controller keeps the ROS services discovered, so each
+workstation key does not pay a fresh DDS-discovery delay. A failed or timed-out
+control no longer exits the workstation console: it displays a red warning,
+keeps the replay attached, and leaves `i`, `v`, and `q` available.
 
 Choosing `o` lists the current Jetson files before stopping anything. Cancelling
 leaves the current replay untouched. After a selection, the console cleanly
@@ -95,6 +103,36 @@ command. To inspect or stop it without opening RViz:
 The live field console and replay console are mutually exclusive because both
 publish the same `/zed/zed_node` interface. Close one normally before opening
 the other. Replay does not open or require the physical GMSL cameras.
+
+## Playback rate and apparent stalls
+
+`1.0x` is the requested SVO rate, not a promise that the Orin Nano can generate
+HD1200 NEURAL depth and the point cloud at 15 frames per second. Controlled
+replay deliberately processes every recorded frame. On this rig, NEURAL replay
+can therefore advance video time more slowly than wall time when RGB, depth,
+and point-cloud subscribers are active. Read the footer's `OUTPUT≈...fps`
+measurement to distinguish slow processing from a stopped unit.
+
+A frame seek is serialized behind any in-flight ZED SDK grab. Under full remote
+preview load, the seek response can take more than ten seconds even though it
+eventually succeeds. The field controller waits up to 35 seconds for that real
+response and shows a prominent pending-operation indicator meanwhile.
+
+For a weaker or congested field network, begin at half-rate to reduce the
+publication target and use `+` later if the link is healthy:
+
+```bash
+./scripts/zed_replay_console.sh \
+  --jetson dusty@ubuntu.local \
+  --remote-root /home/dusty/workspace/terraforming_mars/zed-x-one-rig \
+  --rate 0.5
+```
+
+ROS 2 DDS participants select a network interface when they start. If either
+computer moves between AsteraMesh and Mars while replay is open, stop and
+relaunch the replay after both machines are on the new network. Do not reuse a
+unit that was started on the previous subnet; its DDS sockets still target the
+old address even though SSH may reconnect.
 
 ## Manual Jetson fallback
 

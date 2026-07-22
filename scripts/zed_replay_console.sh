@@ -32,6 +32,12 @@ STATUS_TEXT="REPLAY STARTING"
 STATUS_STYLE="1;33"
 CONTROL_TEXT="Keys: Space/p play-pause | o open dataset | ←/→ 1s | ,/. frame | -/+ speed | i info | v RViz | q quit"
 STATUS_INTERVAL=1
+NOTICE_TEXT=""
+NOTICE_STYLE="1;32"
+NOTICE_UNTIL=0
+PROGRESS_FRAME=-1
+PROGRESS_AT=0
+EFFECTIVE_FPS=""
 SSH_OPTIONS=(
   -n
   -o BatchMode=yes
@@ -125,6 +131,30 @@ remote_shell() {
 
 remote_session() {
   remote_shell "$REMOTE_ROOT/scripts/zed_replay_session.sh" "$@"
+}
+
+set_notice() {
+  local style="$1" duration="$2" message="$3"
+  NOTICE_STYLE="$style"
+  NOTICE_UNTIL=$(($(date +%s) + duration))
+  NOTICE_TEXT="$message"
+}
+
+run_control() {
+  local label="$1" output first_line
+  shift
+  STATUS_STYLE="1;36"
+  STATUS_TEXT="⌛ $label - waiting for the Jetson/ZED SDK"
+  draw_footer
+  if output="$(remote_session "$@" 2>&1)"; then
+    first_line="$(head -n1 <<<"$output")"
+    set_notice "1;32" 3 "${first_line:-$label complete}"
+    return 0
+  fi
+  clear_footer
+  printf '%s\n' "$output" >&2
+  set_notice "1;31" 8 "$label failed; replay is still attached (press i for status)"
+  return 1
 }
 
 build_start_args() {
@@ -381,7 +411,7 @@ machine_status() { remote_session status --machine; }
 
 status_line() {
   local output state=UNKNOWN svo="" frame=0 total=0 fps=15 rate=1.0 loop=false loops=0
-  local rviz=closed key value current_time total_time line
+  local rviz=closed key value current_time total_time line now progress_age delta delta_time
   if ! output="$(machine_status 2>&1)"; then
     STATUS_STYLE="1;33"
     STATUS_TEXT="? CONTROL DISCONNECTED - Jetson replay left unchanged"
@@ -406,23 +436,74 @@ status_line() {
   CURRENT_FRAME="$frame"
   CURRENT_TOTAL="$total"
   CURRENT_FPS="$fps"
+  now="$(date +%s)"
+  progress_age=0
+  if [[ "$state" == PLAYING ]]; then
+    if ((PROGRESS_FRAME < 0 || frame < PROGRESS_FRAME)); then
+      PROGRESS_FRAME="$frame"
+      PROGRESS_AT="$now"
+      EFFECTIVE_FPS=""
+    elif ((frame > PROGRESS_FRAME)); then
+      delta=$((frame - PROGRESS_FRAME))
+      delta_time=$((now - PROGRESS_AT))
+      if ((delta_time > 0)); then
+        EFFECTIVE_FPS="$(awk -v frames="$delta" -v seconds="$delta_time" \
+          'BEGIN {printf "%.1f", frames / seconds}')"
+      fi
+      PROGRESS_FRAME="$frame"
+      PROGRESS_AT="$now"
+    elif ((PROGRESS_AT > 0)); then
+      progress_age=$((now - PROGRESS_AT))
+    else
+      PROGRESS_AT="$now"
+    fi
+  else
+    PROGRESS_FRAME="$frame"
+    PROGRESS_AT="$now"
+    EFFECTIVE_FPS=""
+  fi
   [[ -n "$RVIZ_PID" ]] && kill -0 "$RVIZ_PID" 2>/dev/null && rviz=open
   current_time="$(format_time "$((frame / fps))")"
   total_time="$(format_time "$((total / fps))")"
   case "$state" in
-    PLAYING) STATUS_STYLE="1;32"; line="▶ PLAY" ;;
+    PLAYING)
+      if ((progress_age >= 5)); then
+        STATUS_STYLE="1;33"
+        line="… ZED PROCESSING (${progress_age}s since the last completed frame)"
+      else
+        STATUS_STYLE="1;32"
+        line="▶ PLAY"
+      fi
+      ;;
     PAUSED) STATUS_STYLE="1;33"; line="Ⅱ PAUSED" ;;
     END) STATUS_STYLE="1;36"; line="■ END" ;;
     STOPPED) STATUS_STYLE="1;36"; line="■ STOPPED" ;;
     *) STATUS_STYLE="1;33"; line="? $state" ;;
   esac
-  line+="  $current_time/$total_time  FRAME=$frame/$total  ${rate}x  LOOP=$loop:$loops  RVIZ=$rviz"
+  line+="  $current_time/$total_time  FRAME=$frame/$total  ${rate}x"
+  [[ -n "$EFFECTIVE_FPS" ]] && line+="  OUTPUT≈${EFFECTIVE_FPS}fps"
+  line+="  LOOP=$loop:$loops  RVIZ=$rviz"
   [[ -n "$svo" ]] && line+="  $(basename -- "$svo")"
+  if [[ -n "$NOTICE_TEXT" && "$now" -le "$NOTICE_UNTIL" ]]; then
+    line="$NOTICE_TEXT  |  $line"
+    STATUS_STYLE="$NOTICE_STYLE"
+  elif [[ "$now" -gt "$NOTICE_UNTIL" ]]; then
+    NOTICE_TEXT=""
+  fi
   STATUS_TEXT="$line"
   draw_footer
 }
 
-detailed_status() { remote_session status; }
+detailed_status() {
+  local output
+  if output="$(remote_session status 2>&1)"; then
+    printf '%s\n' "$output"
+    return 0
+  fi
+  printf '%s\n' "$output" >&2
+  set_notice "1;31" 8 "Status request failed; replay was left unchanged"
+  return 1
+}
 
 open_dataset() {
   local had_tty=false
@@ -447,7 +528,9 @@ open_dataset() {
   if ! $NO_RVIZ; then
     wait_for_topics || return 1
     start_rviz || return 1
-    remote_session seek 0 >/dev/null
+    if ! remote_session seek 0 >/dev/null; then
+      echo "Replay opened, but the initial frame refresh timed out; controls remain available." >&2
+    fi
   fi
   echo "Dataset #$INDEX is ready, paused at frame zero."
 }
@@ -544,7 +627,9 @@ if ! $NO_RVIZ; then
   fi
   # Status topics are volatile. Seeking the paused current frame after RViz
   # subscribes guarantees visible RGB/depth/cloud on the first screen.
-  remote_session seek 0 >/dev/null
+  if ! remote_session seek 0 >/dev/null; then
+    echo "Initial RViz frame refresh timed out; replay controls remain available." >&2
+  fi
 fi
 
 echo
@@ -574,18 +659,18 @@ while true; do
     fi
     clear_footer
     case "$key" in
-      ' '|p|P) echo "Toggling play/pause..."; remote_session pause-toggle ;;
-      ',') echo "Stepping back one frame..."; remote_session step -1 ;;
-      '.') echo "Stepping forward one frame..."; remote_session step 1 ;;
-      j) echo "Stepping back one second..."; remote_session step "-$CURRENT_FPS" ;;
-      l) echo "Stepping forward one second..."; remote_session step "$CURRENT_FPS" ;;
-      J) echo "Stepping back ten seconds..."; remote_session step "$((-10 * CURRENT_FPS))" ;;
-      L) echo "Stepping forward ten seconds..."; remote_session step "$((10 * CURRENT_FPS))" ;;
-      -|'_') echo "Reducing playback speed..."; remote_session speed down ;;
-      +|'=') echo "Increasing playback speed..."; remote_session speed up ;;
-      0) echo "Returning to the first frame..."; remote_session restart ;;
+      ' '|p|P) run_control "Changing play/pause state" pause-toggle || true ;;
+      ',') run_control "Seeking back one frame" step -1 || true ;;
+      '.') run_control "Seeking forward one frame" step 1 || true ;;
+      j) run_control "Seeking back one second" step "-$CURRENT_FPS" || true ;;
+      l) run_control "Seeking forward one second" step "$CURRENT_FPS" || true ;;
+      J) run_control "Seeking back ten seconds" step "$((-10 * CURRENT_FPS))" || true ;;
+      L) run_control "Seeking forward ten seconds" step "$((10 * CURRENT_FPS))" || true ;;
+      -|'_') run_control "Reducing playback speed" speed down || true ;;
+      +|'=') run_control "Increasing playback speed" speed up || true ;;
+      0) run_control "Returning to the first frame" restart || true ;;
       o|O) open_dataset || true ;;
-      i|I) detailed_status ;;
+      i|I) detailed_status || true ;;
       v|V)
         if start_rviz; then remote_session seek "$CURRENT_FRAME" >/dev/null || true; fi
         ;;

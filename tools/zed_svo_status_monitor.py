@@ -85,7 +85,7 @@ class StatusMonitor(Node):
             self.write_status_fields()
 
     @staticmethod
-    def await_response(client, request, timeout: float = 10.0):
+    def await_response(client, request, timeout: float = 15.0):
         if not client.wait_for_service(timeout_sec=timeout):
             raise RuntimeError(f"service unavailable: {client.srv_name}")
         future = client.call_async(request)
@@ -102,7 +102,9 @@ class StatusMonitor(Node):
         if not words:
             raise ValueError("empty command")
         if words[0] == "pause-toggle" and len(words) == 1:
-            response = self.await_response(self.pause_client, Trigger.Request())
+            response = self.await_response(
+                self.pause_client, Trigger.Request(), timeout=15.0
+            )
             if not response.success:
                 raise RuntimeError(response.message)
             status = "PAUSED" if "paused" in response.message.lower() else "PLAYING"
@@ -111,7 +113,11 @@ class StatusMonitor(Node):
         if words[0] == "seek" and len(words) == 2:
             request = SetSvoFrame.Request()
             request.frame_id = int(words[1])
-            response = self.await_response(self.seek_client, request)
+            # set_svo_frame is serialized behind the SDK grab mutex.  A full
+            # HD1200 NEURAL grab can take well over ten seconds when remote
+            # RGB/depth/point-cloud subscribers are active, so a short client
+            # timeout reports failure even though the seek later completes.
+            response = self.await_response(self.seek_client, request, timeout=35.0)
             if not response.success:
                 raise RuntimeError(response.message)
             status = self.status_fields.get("STATUS", "PLAYING")
@@ -128,7 +134,9 @@ class StatusMonitor(Node):
                     value=ParameterValue(type=ParameterType.PARAMETER_DOUBLE, double_value=rate),
                 )
             ]
-            response = self.await_response(self.parameters_client, request)
+            response = self.await_response(
+                self.parameters_client, request, timeout=15.0
+            )
             if not response.results or not response.results[0].successful:
                 reason = response.results[0].reason if response.results else "empty parameter response"
                 raise RuntimeError(reason)
