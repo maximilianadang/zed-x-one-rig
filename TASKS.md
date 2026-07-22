@@ -335,8 +335,13 @@ The completed ROS 2 viewing plan is preserved at
     messages and RViz subscriptions, uses Draco for the preview cloud, isolates
     the viewer process group, bounds shutdown, and prevents SSH from consuming
     terminal keys. Local acceptance reached the readiness gate on all three
-    streams and the isolated group exited after SIGINT. The gate remains open
-    until the actual receiver repeats RViz, recording, q, and orphan checks.
+    streams and the isolated group exited after SIGINT. The next receiver run
+    proved the cloud display and both image subscriptions but exposed that the
+    hand-written RViz config had no saved dock layout, allowing the live RGB and
+    Depth widgets to remain hidden. The config now carries an explicit visible
+    left-controls/center-cloud/right-RGB-and-Depth layout. The gate remains open
+    until the actual receiver repeats visible images, recording, q, and orphan
+    checks.
 
 - [ ] **T4 - prove interactive recording and recovery on AsteraMesh.**
   - Exercise each accepted preset from the workstation while RViz displays all

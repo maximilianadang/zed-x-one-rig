@@ -144,6 +144,11 @@ The reduced 960x600/5 Hz images and reduced 2 Hz point cloud shown in RViz are
 preview products only. They are not what the SVO2 records. The SVO2 preserves
 the synchronized native stereo images so depth can be recomputed later.
 
+The shipped RViz layout keeps controls at left, the point cloud in the center,
+and visible RGB and Depth image docks stacked at right. If a prior RViz user
+layout overrides or closes a dock, use RViz's **View** menu to re-enable `RGB`
+and `Depth`, then press `v` in the field console to reload the shipped layout.
+
 The LAN carries compressed RGB, compressed depth, and the wrapper's Draco
 point-cloud transport. The workstation expands all three into ordinary local
 ROS topics for RViz. On this rig the raw reduced point cloud measured about
