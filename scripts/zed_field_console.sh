@@ -18,6 +18,10 @@ RUNTIME_BASE="${XDG_RUNTIME_DIR:-/tmp/zed-field-console-$(id -u)}"
 CONTROL_PATH="$RUNTIME_BASE/zed-field-ssh-%C"
 RVIZ_LOG="$RUNTIME_BASE/zed-field-rviz-$(id -u).log"
 RVIZ_READY="$RUNTIME_BASE/zed-field-rviz-$(id -u).ready"
+TTY_STATE=""
+FOOTER_DRAWN=false
+STATUS_TEXT="STATE=STARTING  RECORDING=UNKNOWN  RVIZ=closed"
+CONTROL_TEXT="Keys: r record | s stop/save | i inspect | v reopen RViz | h help | q safe quit"
 SSH_OPTIONS=(
   -n
   -o BatchMode=yes
@@ -78,7 +82,46 @@ die() {
 key_help() {
   echo
   echo "Terminal focus required for keys."
-  echo "Keys: [r] record lossless  [s] stop/save  [i] deep status  [v] reopen RViz  [h] help  [q] safe quit"
+  echo "$CONTROL_TEXT"
+}
+
+clear_footer() {
+  if $FOOTER_DRAWN; then
+    # The cursor rests on the second footer row. Clear it, move to the first
+    # row, clear that, and leave the cursor there for normal command output.
+    printf '\r\033[2K\033[1A\r\033[2K'
+    FOOTER_DRAWN=false
+  fi
+}
+
+fit_footer_line() {
+  local text="$1" columns width
+  columns="$(tput cols 2>/dev/null || printf '120')"
+  [[ "$columns" =~ ^[0-9]+$ ]] || columns=120
+  width=$((columns > 20 ? columns - 1 : 20))
+  printf '%s' "${text:0:width}"
+}
+
+draw_footer() {
+  local status controls
+  clear_footer
+  status="$(fit_footer_line "$STATUS_TEXT")"
+  controls="$(fit_footer_line "$CONTROL_TEXT")"
+  printf '\r\033[2K%s\n\033[2K%s' "$status" "$controls"
+  FOOTER_DRAWN=true
+}
+
+enable_console_tty() {
+  TTY_STATE="$(stty -g)" || die "Cannot read terminal state"
+  stty -echo
+}
+
+restore_console_tty() {
+  clear_footer
+  if [[ -n "$TTY_STATE" ]]; then
+    stty "$TTY_STATE" 2>/dev/null || true
+    TTY_STATE=""
+  fi
 }
 
 shell_join() {
@@ -125,6 +168,7 @@ stop_rviz() {
 
 detached_exit() {
   trap - INT TERM EXIT
+  restore_console_tty
   stop_rviz
   close_ssh_master
   echo
@@ -134,6 +178,7 @@ detached_exit() {
 }
 
 local_cleanup() {
+  restore_console_tty
   stop_rviz
   close_ssh_master
 }
@@ -269,7 +314,8 @@ machine_status() {
 status_line() {
   local output state="UNKNOWN" diagnostic="UNKNOWN" free=0 minutes=0 path="" rviz=closed line key value
   if ! output="$(machine_status 2>&1)"; then
-    printf '\r\033[KCONTROL DISCONNECTED - Jetson session left unchanged'
+    STATUS_TEXT="CONTROL DISCONNECTED - Jetson session left unchanged"
+    draw_footer
     return 1
   fi
   while IFS='=' read -r key value; do
@@ -284,20 +330,20 @@ status_line() {
   if [[ -n "$RVIZ_PID" ]] && kill -0 "$RVIZ_PID" 2>/dev/null; then rviz=open; fi
   line="STATE=$state  RECORDING=$diagnostic  RVIZ=$rviz  LOSSLESS≈${minutes}min"
   [[ -n "$path" ]] && line+="  FILE=$(basename -- "$path")"
-  printf '\r\033[K%s' "$line"
+  STATUS_TEXT="$line"
+  draw_footer
 }
 
 detailed_status() {
-  echo
   remote_session status
 }
 
 safe_quit() {
-  echo
   echo "Requesting safe Jetson shutdown (active recording will finalize first)..."
   if remote_session stop; then
     stop_rviz
     close_ssh_master
+    restore_console_tty
     trap - INT TERM EXIT
     echo "Field session closed cleanly."
     exit 0
@@ -370,7 +416,9 @@ fi
 echo
 echo "VIEW ONLY - recording is OFF until you press r."
 key_help
+enable_console_tty
 last_status="$(date +%s)"
+status_line || true
 while true; do
   now="$(date +%s)"
   if ((now - last_status >= 5)); then
@@ -379,9 +427,9 @@ while true; do
   fi
   key=""
   if IFS= read -rsn1 -t 1 key; then
+    clear_footer
     case "$key" in
       r|R)
-        echo
         echo "Starting lossless recording; allow about 5 seconds for file-growth verification..."
         if remote_session record-start --preset lossless; then
           echo "Recording is active and file growth was verified."
@@ -390,7 +438,6 @@ while true; do
         fi
         ;;
       s|S)
-        echo
         echo "Stopping, finalizing, and validating the recording..."
         if remote_session record-stop; then
           echo "Recording was finalized, validated, and saved."
@@ -399,12 +446,13 @@ while true; do
         fi
         ;;
       i|I) detailed_status ;;
-      v|V) echo; start_rviz || true ;;
+      v|V) start_rviz || true ;;
       h|H|'?') key_help ;;
       q|Q) safe_quit ;;
     esac
-    # A handled key already produced its own acknowledgement or result. Do not
-    # immediately hide it behind a second synchronous remote status request.
     last_status="$(date +%s)"
+    # Keep action output in scrollback and restore the two-line dashboard below
+    # it. This fast state read does not invoke DDS discovery.
+    status_line || true
   fi
 done

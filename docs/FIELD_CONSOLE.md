@@ -51,6 +51,14 @@ These keys are read by the terminal controller. Focus the terminal—not the
 RViz window—before pressing them. SSH control commands have stdin disabled so
 they cannot consume a key intended for the controller.
 
+While the controller is running, its last two terminal rows are a persistent
+status-and-key footer. Periodic state changes redraw those rows in place instead
+of appending status lines to the terminal. Command results remain above the
+footer as useful scrollback. Terminal echo stays disabled for the entire control
+session, including while a remote start, save, or health check is running, so a
+queued key cannot be printed in the middle of command output. Normal terminal
+settings are restored on `q`, `Ctrl+C`, failure, or ordinary process exit.
+
 The controller reuses one multiplexed SSH connection and its automatic status
 line reads only the Jetson unit and saved session state. It does not launch ROS
 discovery in the keyboard loop. Pressing `i` deliberately performs the deeper
