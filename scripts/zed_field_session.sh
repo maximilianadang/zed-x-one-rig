@@ -188,13 +188,11 @@ print_status() {
   [[ -n "$path" && -f "$path" ]] && bytes="$(stat -c %s "$path")"
 
   node_state=absent
-  diag=UNKNOWN
+  diag="NOT ACTIVE"
   if [[ "$unit_state" == active ]]; then
     source_ros >/dev/null
     if timeout 5s ros2 node list --no-daemon 2>/dev/null | grep -Fxq /zed/zed_node; then
       node_state=ready
-      diag="$(recording_diagnostic)"
-      [[ -n "$diag" ]] || diag=UNKNOWN
     else
       node_state=starting
     fi
@@ -202,7 +200,11 @@ print_status() {
 
   if [[ -n "$path" ]]; then
     state=RECORDING
-    [[ "$diag" == ERROR ]] && state=RECORDING_ERROR
+    if [[ "$unit_state" == active && "$node_state" == ready ]]; then
+      diag=ACTIVE
+    else
+      diag=UNKNOWN
+    fi
   elif [[ "$unit_state" == active ]]; then
     state=VIEWING
   else
@@ -306,7 +308,7 @@ call_stop_service() {
 }
 
 record_start() {
-  local preset=lossless available stamp base temp final response size1 size2 diag
+  local preset=lossless available stamp base temp final response size1 size2
   while (($#)); do
     case "$1" in
       --preset) preset="${2:-}"; shift ;;
@@ -339,6 +341,7 @@ record_start() {
     temp="${base}.recording.svo2"
   fi
 
+  echo "Requesting LOSSLESS recording from the ZED SDK..."
   response="$(timeout 20s ros2 service call "$START_SERVICE" \
     zed_msgs/srv/StartSvoRec \
     "{bitrate: 0, compression_mode: 5, target_framerate: 15, input_transcode: false, svo_filename: '$temp'}")"
@@ -352,19 +355,19 @@ record_start() {
   write_state recording.started "$(date +%s)"
   write_state recording.preset lossless
 
+  echo "SDK accepted recording; verifying file growth for about 5 seconds..."
   sleep 3
   size1=0
   [[ -f "$temp" ]] && size1="$(stat -c %s "$temp")"
   sleep 2
   size2=0
   [[ -f "$temp" ]] && size2="$(stat -c %s "$temp")"
-  diag="$(recording_diagnostic)"
-  if [[ "$diag" != ACTIVE || "$size2" -le "$size1" ]]; then
+  if [[ "$size1" -le 0 || "$size2" -le "$size1" ]]; then
     call_stop_service >/dev/null 2>&1 || true
     write_state last.failed_path "$temp"
     clear_recording_state
     echo "Recording health check failed; preserved unvalidated file: $temp" >&2
-    echo "Diagnostic: ${diag:-UNKNOWN}; sizes: $size1 -> $size2" >&2
+    echo "File sizes did not grow: $size1 -> $size2" >&2
     return 1
   fi
 
@@ -441,6 +444,7 @@ record_stop() {
   write_state last.frames "$frames"
   write_state last.bytes "$bytes"
   write_state last.saved "$(date +%s)"
+  rm -f -- "$STATE_DIR/last.failed_path"
   clear_recording_state
 
   if $MACHINE; then

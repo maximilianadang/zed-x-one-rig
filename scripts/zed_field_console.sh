@@ -382,6 +382,7 @@ while true; do
     case "$key" in
       r|R)
         echo
+        echo "Starting lossless recording; allow about 5 seconds for file-growth verification..."
         if remote_session record-start --preset lossless; then
           echo "Recording is active and file growth was verified."
         else

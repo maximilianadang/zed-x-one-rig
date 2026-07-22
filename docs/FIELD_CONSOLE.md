@@ -40,7 +40,7 @@ because the camera or RViz is open.
 
 | Key | Action |
 |---|---|
-| `r` | Start a new lossless SVO2 on the Jetson; return only after diagnostics and file growth pass. |
+| `r` | Start a new lossless SVO2 on the Jetson; return after the SDK accepts it and file growth passes. |
 | `s` | Stop, finalize, validate, and promote the temporary SVO2 to its final name. |
 | `i` | Print unit, ROS, recording, path, size, storage, and last-saved status. |
 | `v` | Reopen local RViz without reopening cameras or changing recording. |
@@ -143,6 +143,14 @@ depth at the expected field rates.
 The reduced 960x600/5 Hz images and reduced 2 Hz point cloud shown in RViz are
 preview products only. They are not what the SVO2 records. The SVO2 preserves
 the synchronized native stereo images so depth can be recomputed later.
+
+Recording startup is accepted when the ZED SDK service returns success and the
+temporary SVO2 has a positive size that continues growing across the five-second
+check. That direct storage evidence is authoritative. The aggregate ROS
+`/diagnostics` topic is not used as a startup gate because a one-shot diagnostic
+sample can omit the SVO status and report `UNKNOWN` while the SDK is actively
+writing valid frames. `s` still performs strict SVO2 metadata and frame-count
+validation before giving the file its final `.svo2` name.
 
 The shipped RViz layout keeps controls at left, the point cloud in the center,
 and visible RGB and Depth image docks stacked at right. If a prior RViz user
