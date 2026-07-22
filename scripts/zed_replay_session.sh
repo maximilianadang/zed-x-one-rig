@@ -35,6 +35,7 @@ Commands:
   status [--machine]                     Show file, frame, time, rate, and state
   pause-toggle                            Toggle paused/playing
   pause | play                            Set an explicit playback state
+  next                                    Advance one frame sequentially and pause
   speed up|down|RATE                      Change playback speed from 0.1x to 5x
   stop                                    Stop the transient replay unit
   logs                                    Show recent replay-unit logs
@@ -373,6 +374,16 @@ set_play_state() {
   print_status
 }
 
+play_next_frame() {
+  local rate
+  lock_commands
+  require_active
+  rate="$(state_value session.rate)"
+  rate="${rate:-1.0}"
+  control_command play-next "$rate" || die "Sequential next-frame request failed"
+  print_status
+}
+
 refresh_current_frame() {
   local current
   lock_commands
@@ -443,6 +454,7 @@ case "$command" in
   pause-toggle) pause_toggle ;;
   pause) set_play_state PAUSED ;;
   play) set_play_state PLAYING ;;
+  next) play_next_frame ;;
   speed) set_speed "${1:-}" ;;
   _refresh-current-frame) refresh_current_frame ;;
   stop) stop_session ;;

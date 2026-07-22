@@ -15,10 +15,8 @@ def main() -> None:
     arguments = parser.parse_args()
 
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as connection:
-        # The Jetson-side seek service may wait behind an in-flight HD1200
-        # NEURAL grab.  Keep this longer than the controller's 35 s service
-        # deadline so callers receive the real response instead of an early
-        # socket timeout.
+        # Commands are bounded by the controller. Keep the socket deadline
+        # long enough to return its actual success or failure response.
         connection.settimeout(45.0)
         connection.connect(str(arguments.socket))
         connection.sendall((" ".join(arguments.command) + "\n").encode("utf-8"))

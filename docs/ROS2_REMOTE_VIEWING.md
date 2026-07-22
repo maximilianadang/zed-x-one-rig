@@ -183,10 +183,11 @@ Select an exact Jetson path and loop it:
 ```
 
 Replay starts paused at frame zero, opens RViz, and refreshes the paused frame
-after RViz subscribes. The terminal provides play/pause, single-frame and timed
-steps, restart, 0.1x-5x speed changes, status, RViz reopen, and safe shutdown.
-Press `o` during replay to browse and switch datasets without leaving the
-console.
+after RViz subscribes. The terminal provides play/pause, forward-only
+single-frame advance, 0.1x-5x speed changes, status, RViz reopen, and safe
+shutdown. Right Arrow processes the next frame sequentially without seeking;
+backward and timed scrubbing are disabled. Press `o` during replay to browse
+and switch datasets without leaving the console.
 The launcher validates the SVO2 with `ZED_SVO_Editor -inf` and refuses files
 with no indexed frames or a virtual serial other than `116863460`.
 

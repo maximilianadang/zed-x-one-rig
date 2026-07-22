@@ -59,7 +59,8 @@ not confirmed as finalized. Selection index `1` always means newest.
 | Key | Action |
 |---|---|
 | `Space` or `p` | Play or pause. At end-of-file, use `o` to reopen. |
-| `-` / `+` | Reduce/increase playback speed through 0.1x–5x presets. |
+| `Right Arrow` | While paused, process the next sequential frame and pause again. |
+| `Up` / `Down`, or `+` / `-` | Increase/reduce playback speed through 0.1x–5x presets. |
 | `o` | Open the remote dataset directory and switch recordings. |
 | `i` | Print detailed file, frame, loop, speed, and unit status. |
 | `v` | Restart RViz without seeking or changing replay position. |
@@ -79,11 +80,21 @@ workstation key does not pay a fresh DDS-discovery delay. A failed or timed-out
 control no longer exits the workstation console: it displays a red warning,
 keeps the replay attached, and leaves `i`, `v`, and `q` available.
 
-Interactive frame seeking and scrubbing are deliberately not offered. On this
-rig, the ZED wrapper serializes `set_svo_frame` behind an in-flight HD1200
-NEURAL grab; an observed one-second rewind took 11.5 seconds. That is not a
-usable field control. To revisit an earlier time, press `o`, reopen the dataset
-from frame zero, reduce the playback rate with `-`, and play forward.
+The playback keys follow the useful subset of `ros2 bag play`: Space toggles
+pause, Right Arrow advances once while paused, and Up/Down adjusts rate.
+Right Arrow is not implemented as a seek. The Jetson controller temporarily
+uses the minimum sequential playback rate, allows exactly one normal grab,
+pauses before another scheduled grab, waits for the wrapper's small post-grab
+health message, and restores the selected rate. It never calls `set_svo_frame`
+for this control. If a frame does not complete within five seconds, the command
+returns a bounded error with playback still paused rather than waiting on a
+seek indefinitely.
+
+Backward seeking and time scrubbing are deliberately not offered. On this rig,
+the ZED wrapper serializes `set_svo_frame` behind an in-flight HD1200 NEURAL
+grab; an observed one-second rewind took 11.5 seconds. To revisit an earlier
+time, press `o`, reopen the dataset from frame zero, reduce the playback rate,
+and play or step forward.
 
 Choosing `o` lists the current Jetson files before stopping anything. Cancelling
 leaves the current replay untouched. After a selection, the console cleanly
@@ -144,6 +155,7 @@ cd /home/dusty/workspace/terraforming_mars/zed-x-one-rig
 ./scripts/zed_replay_session.sh list
 ./scripts/zed_replay_session.sh start --latest
 ./scripts/zed_replay_session.sh pause-toggle
+./scripts/zed_replay_session.sh next
 ./scripts/zed_replay_session.sh speed 0.5
 ./scripts/zed_replay_session.sh status
 ./scripts/zed_replay_session.sh stop

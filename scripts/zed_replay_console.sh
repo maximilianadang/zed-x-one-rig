@@ -27,7 +27,7 @@ TTY_STATE=""
 FOOTER_DRAWN=false
 STATUS_TEXT="REPLAY STARTING"
 STATUS_STYLE="1;33"
-CONTROL_TEXT="Keys: Space/p play-pause | -/+ speed | o open dataset | i info | v RViz | q quit"
+CONTROL_TEXT="Keys: Space/p play-pause | Right next frame | Up/Down speed | o dataset | i info | v RViz | q quit"
 STATUS_INTERVAL=1
 NOTICE_TEXT=""
 NOTICE_STYLE="1;32"
@@ -81,16 +81,16 @@ Options:
 
 Interactive keys:
   Space or p   Play/pause
-  - and +     Decrease/increase playback speed (0.1x to 5x)
+  Right Arrow  Advance one frame sequentially while paused
+  Up/Down or +/-  Increase/decrease playback speed (0.1x to 5x)
   o           Open the remote dataset browser and switch recordings
   i           Detailed replay status
   v           Reopen RViz without seeking
   h           Show keys
   q           Stop Jetson replay and close RViz
 
-Frame seeking and scrubbing are deliberately not exposed. On this rig, the
-ZED wrapper can block a seek behind an HD1200 NEURAL grab for many seconds.
-Reopen the dataset with o and use a slower playback rate instead.
+Backward seeking and time scrubbing are deliberately not exposed. Right Arrow
+uses sequential playback and never calls the ZED set_svo_frame service.
 
 Ctrl+C, terminal closure, or Wi-Fi loss leaves replay running for reconnection.
 Only q or --stop shuts down the named Jetson replay unit.
@@ -103,9 +103,10 @@ key_help() {
   echo
   echo "Terminal focus required for replay keys."
   echo "  Space/p    play or pause"
-  echo "  -/+        slower/faster (0.1x to 5x)"
+  echo "  Right      next frame while paused (no seek)"
+  echo "  Up/Down or -/+    faster/slower (0.1x to 5x)"
   echo "  o open dataset  i status  v reopen RViz  h help  q safe quit"
-  echo "  Scrubbing is disabled: reopen with o and replay more slowly."
+  echo "  Backward seeking is disabled: reopen with o and replay forward."
 }
 
 shell_join() {
@@ -643,12 +644,14 @@ while true; do
       case "$sequence" in
         '[A') key='+' ;;
         '[B') key='-' ;;
+        '[C') key='next' ;;
         *) key="" ;;
       esac
     fi
     clear_footer
     case "$key" in
       ' '|p|P) run_control "Changing play/pause state" pause-toggle || true ;;
+      next) run_control "Advancing one sequential frame" next || true ;;
       -|'_') run_control "Reducing playback speed" speed down || true ;;
       +|'=') run_control "Increasing playback speed" speed up || true ;;
       o|O) open_dataset || true ;;
