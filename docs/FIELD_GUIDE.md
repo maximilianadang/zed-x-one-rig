@@ -215,6 +215,19 @@ cd /path/to/zed-x-one-rig
 ./scripts/zed_field_console.sh --jetson zed-jetson
 ```
 
+For bright-sky scenes and exposure-limited dust plumes, use the outdoor
+acquisition profile:
+
+```bash
+./scripts/zed_field_console.sh --jetson zed-jetson --outdoor
+```
+
+It preserves the normal calibration, NEURAL depth, native resolution/frame
+rate, and lossless recording, while capping automatic exposure at 8 ms and
+biasing exposure by approximately -0.4 EV to protect highlight structure. The
+footer must show `[OUTDOOR]`. See `docs/FIELD_CONSOLE.md` for limitations and
+the standard-versus-outdoor comparison procedure.
+
 It starts in view-only mode. Use `r` to start lossless recording, `s` to
 finalize/validate/save, `i` for status, `v` to reopen RViz, and `q` for complete
 safe shutdown. One-time SSH setup, disconnect recovery, and offline operation

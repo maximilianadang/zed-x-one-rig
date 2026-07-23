@@ -36,6 +36,37 @@ where the command is being run on the viewing computer.
 The console starts in **view-only** mode. It never starts recording merely
 because the camera or RViz is open.
 
+## Sky-heavy outdoor/dust-plume mode
+
+When bright sky occupies much of the image, start the complete console with the
+outdoor acquisition profile:
+
+```bash
+./scripts/zed_field_console.sh --jetson zed-jetson --outdoor
+```
+
+This is a shortcut for `--view-profile outdoor`. It keeps automatic exposure
+enabled, limits automatic exposure time to 8000 microseconds, and applies
+exposure compensation `40`, approximately -0.4 EV relative to the neutral
+value `50`. The intent is to retain bright-sky and dust-plume highlight
+structure while reducing motion blur. Calibration, HD1200/15 FPS acquisition,
+NEURAL depth, network-preview rates, and lossless SVO2 compression are
+unchanged. The terminal footer displays `[OUTDOOR]` whenever this profile is
+actually active on the Jetson.
+
+The profile does not create HDR data, and it cannot manufacture contrast when
+the plume and its background have identical radiance. It helps when subtle
+structure was being clipped or smeared by the standard automatic exposure.
+Sky normally remains invalid in stereo depth because it has negligible
+disparity; that is independent of the color exposure mode.
+
+Exposure is baked into the recorded camera pixels. Compare short captures of
+the same scene in standard and outdoor modes before committing a long field
+recording. To return to the standard profile, stop the current session with
+`q`, then launch the normal command without `--outdoor`. The console rejects a
+request to attach using a different profile instead of silently changing a
+running camera session.
+
 ## Keys
 
 | Key | Action |

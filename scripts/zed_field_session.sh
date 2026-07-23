@@ -167,7 +167,7 @@ camera_pair_available() {
 }
 
 print_status() {
-  local unit_state node_state state path final started preset bytes free diag last failed profile usable minutes
+  local unit_state node_state state path final started preset bytes free diag last failed profile mode usable minutes
   ensure_runtime
   if unit_active; then unit_state=active; else unit_state=inactive; fi
 
@@ -178,6 +178,12 @@ print_status() {
   last="$(state_value last.path)"
   failed="$(state_value last.failed_path)"
   profile="$(state_value session.profile)"
+  case "${profile##*/}" in
+    field.yaml) mode=STANDARD ;;
+    outdoor.yaml) mode=OUTDOOR ;;
+    "") mode=NONE ;;
+    *) mode=CUSTOM ;;
+  esac
   free="$(free_bytes 2>/dev/null || printf '0')"
   usable=0
   minutes=0
@@ -231,7 +237,7 @@ print_status() {
       "$path" "$final" "$started" "$preset"
     printf 'FILE_BYTES=%s\nFREE_BYTES=%s\nLAST_PATH=%s\nFAILED_PATH=%s\n' \
       "$bytes" "$free" "$last" "$failed"
-    printf 'PROFILE=%s\nEST_LOSSLESS_MINUTES=%s\n' "$profile" "$minutes"
+    printf 'PROFILE=%s\nMODE=%s\nEST_LOSSLESS_MINUTES=%s\n' "$profile" "$mode" "$minutes"
     return
   fi
 
@@ -240,6 +246,7 @@ print_status() {
   echo "  Unit:        $unit_state"
   echo "  ROS node:    $node_state"
   echo "  Recording:   $diag"
+  echo "  Mode:        $mode"
   echo "  Free space:  $(human_bytes "$free")"
   echo "  Est. record: ${minutes} lossless minutes above reserve"
   [[ -n "$profile" ]] && echo "  Profile:     $profile"

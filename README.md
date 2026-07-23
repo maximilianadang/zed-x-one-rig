@@ -72,6 +72,18 @@ The console starts in view-only mode. Press `r` to start lossless recording,
 a complete safe shutdown. Recordings are synchronized full-resolution SVO2
 files on the Jetson, not the reduced ROS preview.
 
+For bright-sky scenes and optically thick, contrast-limited dust plumes, select
+the outdoor acquisition profile at startup:
+
+```bash
+./scripts/zed_field_console.sh --jetson zed-jetson --outdoor
+```
+
+The footer must report `[OUTDOOR]`. This preserves the normal calibrated
+NEURAL/lossless pipeline while limiting exposure time and protecting highlight
+structure; see [docs/FIELD_CONSOLE.md](docs/FIELD_CONSOLE.md) for the exact
+settings and limitations.
+
 The default target can also be supplied directly when mDNS is unambiguous:
 
 ```bash

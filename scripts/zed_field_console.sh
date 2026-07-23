@@ -45,6 +45,9 @@ Open and control this calibrated ZED rig from the Ubuntu viewing workstation.
 Most likely field command (from this repository on the viewing computer):
   $ROOT/scripts/zed_field_console.sh --jetson dusty@ubuntu.local
 
+Sky-heavy outdoor/dust-plume command:
+  $ROOT/scripts/zed_field_console.sh --jetson dusty@ubuntu.local --outdoor
+
 Using a stable SSH alias configured as zed-jetson:
   $ROOT/scripts/zed_field_console.sh --jetson zed-jetson
 
@@ -55,6 +58,7 @@ Useful noninteractive commands:
 Options:
   --jetson USER@HOST   Jetson SSH target (default: $JETSON)
   --remote-root PATH   Repository path on Jetson (default: $REMOTE_ROOT)
+  --outdoor            Protect bright-sky/plume detail; use the outdoor profile
   --view-profile NAME  Jetson ROS profile name or absolute path (default: field)
   --no-rviz            Run the controller without opening a local RViz window
   --status             Report the existing Jetson session and exit
@@ -346,6 +350,7 @@ machine_status() {
 
 status_line() {
   local output state="UNKNOWN" diagnostic="UNKNOWN" free=0 minutes=0 path="" rviz=closed line key value
+  local mode="UNKNOWN"
   local bytes=0 started=0 now elapsed delta_time delta_bytes rate_bytes duration size rate
   if ! output="$(machine_status 2>&1)"; then
     STATUS_TEXT="CONTROL DISCONNECTED - Jetson session left unchanged"
@@ -362,6 +367,7 @@ status_line() {
       RECORDING_PATH) path="$value" ;;
       FILE_BYTES) bytes="$value" ;;
       STARTED_EPOCH) started="$value" ;;
+      MODE) mode="$value" ;;
     esac
   done <<<"$output"
   if [[ -n "$RVIZ_PID" ]] && kill -0 "$RVIZ_PID" 2>/dev/null; then rviz=open; fi
@@ -384,10 +390,10 @@ status_line() {
     rate="$(format_data_rate "$rate_bytes")"
     if [[ "$diagnostic" == ACTIVE ]]; then
       STATUS_STYLE="1;31"
-      line="● REC  $duration  SAVED=$size  WRITE=$rate  RVIZ=$rviz  $(basename -- "$path")"
+      line="● REC [$mode]  $duration  SAVED=$size  WRITE=$rate  RVIZ=$rviz  $(basename -- "$path")"
     else
       STATUS_STYLE="1;33"
-      line="● RECORDING?  $duration  SAVED=$size  WRITE=$rate  RVIZ=$rviz"
+      line="● RECORDING? [$mode]  $duration  SAVED=$size  WRITE=$rate  RVIZ=$rviz"
     fi
     PREV_RECORDING_PATH="$path"
     PREV_FILE_BYTES="$bytes"
@@ -398,13 +404,13 @@ status_line() {
     PREV_SAMPLE_EPOCH=0
     if [[ "$state" == VIEWING ]]; then
       STATUS_STYLE="1;32"
-      line="○ VIEW ONLY  RVIZ=$rviz  LOSSLESS CAPACITY≈${minutes}min"
+      line="○ VIEW ONLY [$mode]  RVIZ=$rviz  LOSSLESS CAPACITY≈${minutes}min"
     elif [[ "$state" == STOPPED ]]; then
       STATUS_STYLE="1;36"
-      line="○ STOPPED  RVIZ=$rviz"
+      line="○ STOPPED [$mode]  RVIZ=$rviz"
     else
       STATUS_STYLE="1;33"
-      line="? $state  RECORDING=$diagnostic  RVIZ=$rviz"
+      line="? $state [$mode]  RECORDING=$diagnostic  RVIZ=$rviz"
     fi
   fi
   STATUS_TEXT="$line"
@@ -432,6 +438,7 @@ while (($#)); do
   case "$1" in
     --jetson) JETSON="${2:-}"; shift ;;
     --remote-root) REMOTE_ROOT="${2:-}"; shift ;;
+    --outdoor) VIEW_PROFILE=outdoor ;;
     --view-profile) VIEW_PROFILE="${2:-}"; shift ;;
     --no-rviz) NO_RVIZ=true ;;
     --status) ACTION=status ;;

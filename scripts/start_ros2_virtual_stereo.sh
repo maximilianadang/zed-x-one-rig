@@ -18,6 +18,9 @@ Publish this calibrated dual ZED X One rig over ROS 2.
 Copy/paste field launch:
   $ROOT/scripts/start_ros2_virtual_stereo.sh
 
+Copy/paste sky-heavy outdoor launch:
+  $ROOT/scripts/start_ros2_virtual_stereo.sh --profile $ROOT/config/ros2/outdoor.yaml
+
 On the remote Ubuntu 22.04 workstation:
   $ROOT/scripts/start_ros2_rviz.sh
 

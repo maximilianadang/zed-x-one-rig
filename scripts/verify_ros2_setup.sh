@@ -77,6 +77,17 @@ else
   fail "missing config/field_console.env"
 fi
 
+outdoor_profile="$ROOT/config/ros2/outdoor.yaml"
+if [[ -r "$outdoor_profile" ]] &&
+   grep -Fq 'auto_exposure_gain: true' "$outdoor_profile" &&
+   grep -Fq 'auto_exposure_time_range_max: 8000' "$outdoor_profile" &&
+   grep -Fq 'exposure_compensation: 40' "$outdoor_profile" &&
+   grep -Fq "depth_mode: 'NEURAL'" "$outdoor_profile"; then
+  pass "sky-heavy outdoor exposure profile"
+else
+  fail "missing or unexpected outdoor profile: $outdoor_profile"
+fi
+
 jetson_dds="$ROOT/config/ros2/cyclonedds-jetson.xml"
 if [[ -r "$jetson_dds" ]] &&
    grep -Fq '<FragmentSize>1344B</FragmentSize>' "$jetson_dds" &&

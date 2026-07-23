@@ -1,0 +1,80 @@
+# Sky-heavy outdoor acquisition profile for this exact virtual stereo rig.
+#
+# This retains the field profile's native HD1200/15 FPS NEURAL processing and
+# conservative LAN publications. Camera auto-exposure remains enabled, but its
+# maximum integration time is limited to 8 ms to reduce motion blur. Exposure
+# compensation 40 maps to approximately -0.4 EV (50 is neutral), preserving
+# highlight structure in bright sky and optically thick dust plumes.
+#
+# These exposure choices are recorded into the lossless SVO2 pixels. They do
+# not change calibration, stereo synchronization, depth mode, or compression.
+---
+/**:
+  ros__parameters:
+    svo:
+      use_svo_timestamps: true
+      publish_svo_clock: false
+      svo_loop: false
+      svo_realtime: true
+
+    general:
+      grab_resolution: 'HD1200'
+      grab_frame_rate: 15
+      pub_resolution: 'CUSTOM'
+      pub_downscale_factor: 2.0
+      pub_frame_rate: 5.0
+      enable_image_validity_check: 1
+
+    video:
+      # The virtual stereo node applies these controls to the paired sensors.
+      auto_exposure_gain: true
+      auto_exposure_time_range_min: 28
+      auto_exposure_time_range_max: 8000
+      exposure_compensation: 40
+      auto_whitebalance: true
+      enable_24bit_output: true
+      publish_rgb: true
+      publish_left_right: false
+      publish_raw: false
+      publish_gray: false
+      publish_stereo: false
+
+    sensors:
+      publish_imu: false
+      publish_imu_raw: false
+      publish_cam_imu_transf: false
+      publish_mag: false
+      publish_baro: false
+      publish_temp: false
+
+    depth:
+      depth_mode: 'NEURAL'
+      depth_stabilization: 0
+      point_cloud_freq: 2.0
+      point_cloud_res: 'REDUCED'
+      publish_depth_map: true
+      publish_depth_info: false
+      publish_point_cloud: true
+      publish_depth_confidence: false
+      publish_disparity: false
+
+    pos_tracking:
+      pos_tracking_enabled: false
+      publish_tf: false
+      publish_map_tf: false
+
+    mapping:
+      mapping_enabled: false
+
+    object_detection:
+      od_enabled: false
+
+    body_tracking:
+      bt_enabled: false
+
+    stream_server:
+      stream_enabled: false
+
+    debug:
+      sdk_verbose: 1
+      disable_nitros: true
