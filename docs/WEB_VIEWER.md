@@ -83,6 +83,10 @@ The viewing computer may run current macOS or Linux. It needs:
 It does **not** need Ubuntu, ROS, DDS, RViz, ZED SDK, CUDA, VNC, Node, npm, a
 cloud account, a branded viewer, or internet access.
 
+The gateway Content Security Policy permits `wasm-unsafe-eval` solely so the
+pinned offline Draco decoder can compile its WebAssembly module. General
+JavaScript `unsafe-eval` remains disabled.
+
 ## One-time MacBook setup
 
 Do this while internet access is available. macOS already supplies Git,

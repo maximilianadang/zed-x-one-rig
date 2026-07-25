@@ -610,7 +610,7 @@ private:
     response.set("Referrer-Policy", "no-referrer");
     response.set(
       "Content-Security-Policy",
-      "default-src 'self'; script-src 'self'; worker-src 'self' blob:; "
+      "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; "
       "style-src 'self'; img-src 'self' blob: data:; connect-src 'self' ws://127.0.0.1:* "
       "ws://localhost:*; object-src 'none'; base-uri 'none'; frame-ancestors 'none'");
     response.keep_alive(false);
