@@ -1,411 +1,534 @@
-# TASKS - Remote field console for the dual ZED X One rig
+# TASKS - Native browser field viewer for the dual ZED X One rig
 
-Ordered execution plan for controlling this Jetson-hosted calibrated virtual
-stereo rig from the Ubuntu RViz workstation. The intended interface is one
-viewer-side command that starts a view-only session, opens RViz, and provides
-explicit keyboard controls for starting, finalizing, and validating SVO2
-recordings on the Jetson.
+Ordered, approval-gated plan for replacing the Ubuntu/RViz viewing computer
+with a self-hosted browser interface that works natively on a MacBook Pro or
+another modern computer. The Jetson remains the camera, NEURAL-depth, replay,
+and recording host.
 
-This plan follows the project's all-caps rigor: establish observed facts in
-READ, separate proposed conclusions in INFER, make failure containment explicit
-in DE-RISK, and do not begin implementation until the approval gate is accepted.
-The completed ROS 2 viewing plan is preserved at
-`docs/archive/TASKS_ROS2_REMOTE_VIEWING_2026-07-21.md`.
+This plan follows the project's all-caps rigor: READ records observed facts,
+INFER separates proposed conclusions, DERISK makes failure containment and
+acceptance evidence explicit, and implementation does not begin until the user
+approves the gate. The prior RViz field-console plan is preserved at
+`docs/archive/TASKS_REMOTE_FIELD_CONSOLE_2026-07-21.md`.
 
-## Execution status - 2026-07-21
+## Planning status - 2026-07-25
 
-| Task | Status | Evidence / remaining gate |
+| Section | Status | Gate |
 |---|---|---|
-| READ | Complete | Repository, wrapper recording services, direct recorder, diagnostics, and current Jetson network were inspected. |
-| INFER | Approved | User approved the proposed control/data split, lifecycle, keybindings, recording behavior, and network identity. |
-| DE-RISK | Approved | User approved the recording integrity, camera ownership, disconnect, disk, discovery, and rollback gates. |
-| T0 | Jetson complete; receiver pending | Transient user unit, lock/state/log paths, SSH fail-closed behavior, persistence guard, storage, and timeouts are proven. Receiver facts still require that machine. |
-| T1 | Lossless passed; lossy rejected | Lossless produced 523 indexed frames and replayed with NEURAL depth. H.264/H.265 rejected every frame, including ULTRAFAST/async/no-IPC. |
-| T2 | Complete | Jetson helper passed view, attach, refusal, recording, validation, stop, and camera-release gates. |
-| T3 | Implemented; receiver retry pending | Actual receiver proved SSH/DDS/cold start, exposing exit-status, image-health, and q-cleanup bugs. All fixes now pass local acceptance; receiver must pull and repeat. |
-| T4-T5 | Pending external networks | AsteraMesh receiver plus Mars/MarsLink topology and recovery tests require the viewing computer/networks. |
-| T6 | In progress | Offline docs, help, and static checks are being finalized; cross-machine rehearsal remains pending. |
+| READ | Complete | Current repository, ROS topics, RViz configuration, control/replay helpers, installed transports, and receiver packaging were inspected. |
+| INFER | Proposed | Requires explicit user approval before architecture or interface decisions become implementation work. |
+| DERISK | Proposed | Requires explicit user approval before installing packages, adding services, opening cameras, or running live tests. |
+| Implementation | Not started | No browser, gateway, dependency, service, camera, or network change is authorized by this planning document alone. |
 
 ## Desired outcome
 
-- From the Ubuntu viewing workstation, one command connects to the intended
-  Jetson, starts or safely attaches to the calibrated live ROS session, opens
-  the supplied RViz view, and leaves recording off by default.
-- The same terminal presents unambiguous keybindings to start a new lossless
-  SVO2, stop/finalize/save it, inspect status/storage, and close the complete
-  session safely. Lossy quality choices remain disabled because they failed T1.
-- The already-running ROS wrapper remains the only process that owns the two
-  physical cameras while viewing and recording. Recording must not require a
-  camera close/reopen transition.
-- Recordings contain the synchronized full-resolution virtual-stereo inputs and
-  are written on the Jetson under `/home/dusty/Videos/ZED/`; RViz remains a
-  bandwidth-controlled preview and is not the recorded image source.
-- A control disconnect, RViz crash, or Wi-Fi transition does not corrupt or
-  silently stop an active Jetson-side recording. A later controller can report
-  the existing session and attach to it.
-- The controller works on AsteraMesh, Mars, or MarsLink by resolving a Jetson
-  host identity. It does not encode an SSID as the destination.
-- No VNC, cloud account, internet connection, boot-time camera service, driver
-  restart, daemon restart, or calibration change is required in field use.
-- The proven direct `record_virtual_stereo.sh` path remains available as the
-  rollback recorder until in-process ROS recording passes every acceptance
-  gate in this plan.
+- From a MacBook Pro or any current desktop browser on the same reachable
+  network, one native launcher establishes an authenticated connection to the
+  Jetson, opens the field interface, and requires no ROS, RViz, ZED SDK, CUDA,
+  VNC, branded visualization product, cloud account, or internet connection on
+  the viewing computer.
+- The browser reproduces the operational content of the proven RViz view:
+  rectified RGB, registered depth, colored point cloud, XY grid, camera axes,
+  fixed `zed_camera_link` frame, and orbit/pan/zoom controls.
+- "Reproduces RViz" means data-equivalent and convention-equivalent, not a
+  video stream of the RViz desktop or a pixel-for-pixel copy of RViz chrome.
+  The browser must use the same source measurements and match the meaningful
+  visual transformations.
+- The browser replaces the current RViz/DDS receiver. It does not run beside it
+  during normal field use and must not duplicate the camera or preview pipeline.
+- The proven publication and capture contract remains unchanged:
+  - rectified RGB: 960x600 at 5 Hz;
+  - registered depth: 960x600 at 5 Hz;
+  - colored point cloud: `REDUCED` at 2 Hz;
+  - native acquisition: 1920x1200 at 15 FPS;
+  - lossless SVO2 recording: synchronized 1920x1200 at 15 FPS on the Jetson.
+- Standard and `--outdoor` acquisition profiles remain available. Browser
+  selection of a profile must not silently alter resolution, publication rate,
+  depth mode, calibration, or recording compression.
+- The browser includes the field console's prominent view/record state,
+  elapsed recording time, bytes written, current write rate, free-space
+  estimate, saved filename, errors, and explicit start/finalize/status/quit
+  actions.
+- The same interface browses and replays finalized Jetson SVO2 datasets. It
+  preserves the proven forward-only replay model: play/pause, next frame,
+  speed, loop, restart, dataset selection with arrows or number, and no
+  backward/time seeking that can hang the ZED playback service.
+- A browser, tunnel, laptop, or Wi-Fi loss leaves the independent Jetson live
+  session and any active recording unchanged. Reconnection reports and attaches
+  to the real state.
+- Field deployment is fully offline. All JavaScript, WebAssembly, fonts,
+  packages, checksums, and install artifacts required by the shipped path are
+  retained locally.
+
+## Non-goals
+
+- Do not stream a rendered Jetson desktop, RViz window, VNC session, or GPU
+  framebuffer.
+- Do not move ZED SDK processing, NEURAL depth, SVO2 recording, or replay onto
+  the MacBook.
+- Do not increase preview resolution, RGB/depth frequency, point-cloud
+  frequency, native acquisition, or recording rate in this line of work.
+- Do not add spatial mapping, positional tracking, object detection, body
+  tracking, multi-user control, public-internet access, cloud relay, or remote
+  file deletion.
+- Do not replace lossless SVO2 with browser video, ROS bags, MCAP, or a
+  transcoded recording.
+- Do not install, rebuild, restart, or modify JetPack/L4T, the GMSL driver, ZED
+  SDK, camera daemons, calibration, or physical-camera configuration.
 
 ## READ
 
 ### Proven repository and rig boundary
 
-- The repository was clean at `main` commit `1fc35f5`, tracking `origin/main`,
+- The repository was clean at `main` commit `30c6b31`, tracking `origin/main`,
   when this planning read began.
-- The physical-left serial is `304467158`, physical-right serial is
-  `306605936`, and the calibrated virtual serial is `116863460`.
-- The installed virtual calibration SHA-256 remains
-  `0502a05ec12942b4f02c375793c1200c6bec1387b4368c744121cbf61da19ed6`.
-- `scripts/start_ros2_virtual_stereo.sh` already opens that exact serial order
-  with HD1200/15 FPS acquisition and NEURAL depth. It verifies calibration,
-  refuses known camera owners, and runs in the foreground.
-- `scripts/start_ros2_rviz.sh` already opens the body-frame RViz view and uses
-  compressed color/depth transports plus a reduced point cloud.
-- Local live acceptance measured RGB/depth/cloud at approximately
-  `4.841/5.000/1.995 Hz`; normal shutdown returned both physical cameras to
-  `AVAILABLE` without restarting a service.
-- The current ROS profile publishes only a reduced preview. Native synchronized
-  camera acquisition remains 1920x1200 at 15 FPS on the Jetson.
+- Physical-left serial `304467158`, physical-right serial `306605936`, virtual
+  serial `116863460`, and the installed virtual calibration remain the fixed
+  rig identity.
+- `scripts/start_ros2_virtual_stereo.sh` is the only intended live camera
+  owner. It opens the calibrated virtual pair at HD1200/15 FPS with NEURAL
+  depth and refuses known competing camera owners.
+- `config/ros2/field.yaml` and `config/ros2/outdoor.yaml` both publish RGB and
+  registered depth at 960x600/5 Hz and a reduced colored cloud at 2 Hz.
+  Outdoor mode changes exposure controls only.
+- Lossless recording is performed inside the already-open ZED wrapper at
+  1920x1200/15 FPS. Preview transport is not the recording source, and changing
+  the viewer must not change the SVO2 contract.
 
-### Existing recording boundary
+### Exact current RViz content
 
-- `scripts/record_virtual_stereo.sh` and the custom SDK recorder are the proven
-  recording path. They own the camera pair directly, so they cannot run at the
-  same time as the ROS live publisher.
-- The custom recorder checks SDK recording status on every grabbed frame,
-  reports ingested/encoded counts, tolerates bounded startup rejection, stops
-  after sustained write failure, calls `disableRecording()`, closes the camera,
-  and reports the final file size.
-- The measured lossless rate is approximately 56 MB/s, or 3.4 GB/minute.
-  Lossy recording is smaller but alters the images later used for depth.
-- A complete SVO2 is saved by finalizing the recording. There is no useful
-  separate deferred "save" operation after stop.
+- `rviz/virtual_stereo.rviz` uses fixed frame `zed_camera_link`.
+- The view contains:
+  - an XY line grid in the fixed frame;
+  - camera axes referenced to `zed_camera_link`;
+  - an RGB image display;
+  - a registered-depth image display with normalized range enabled;
+  - a colored `PointCloud2` display using XYZ positions, the `rgb` field,
+    `RGB8` color transformation, and two-pixel points;
+  - an orbit camera with pan, zoom, focus, and selection behavior.
+- RGB arrives from
+  `/zed/zed_node/rgb/color/rect/image/compressed`.
+- Registered depth arrives from
+  `/zed/zed_node/depth/depth_registered/compressedDepth`.
+- The remote RViz launcher receives
+  `/zed/zed_node/point_cloud/cloud_registered/draco`, decodes it locally, and
+  displays `/zed_field/point_cloud/cloud_registered`.
+- Historical field measurements observed approximately 174 KB RGB, 60 KB
+  depth, and 69 KB Draco messages at the configured rates. These are
+  scene-dependent samples, not fixed bandwidth guarantees.
 
-### Pinned wrapper recording interface
+### Browser-relevant message and codec facts
 
-- The installed wrapper is Stereolabs `v5.4.0`, commit
-  `6545933af94d70922881654e6fb29d95e3a8f14f`, built against ZED SDK 5.4.0.
-- The live node creates private services `~/start_svo_rec` and
-  `~/stop_svo_rec`, which resolve for this launch as
-  `/zed/zed_node/start_svo_rec` and `/zed/zed_node/stop_svo_rec`.
-- `start_svo_rec` accepts bitrate, compression mode, target frame rate, input
-  transcode, and the Jetson-side output filename. It rejects a second active
-  recording and rejects recording while an SVO is being replayed.
-- The implementation accepts bitrate `0` or `1000..60000`, maps compression
-  values to H.264, H.264 lossless, H.265 lossless, generic lossless, or H.265,
-  and accepts target frame rates including 15 FPS.
-- The installed `StartSvoRec.srv` comment says compression is limited to
-  `[0,2]`, while the pinned wrapper implementation explicitly accepts `[0,5]`.
-  That disagreement is observed evidence and prevents treating any untested
-  numeric preset as authoritative.
-- `stop_svo_rec` calls the SDK stop/finalization path and returns success or an
-  error message. It refuses stop when recording is not active.
-- During live recording the wrapper checks SDK recording status each frame and
-  reports `SVO Recording: ACTIVE`, `ERROR`, or `NOT ACTIVE` through ROS
-  diagnostics. The wrapper's `SvoStatus` topic describes SVO playback, not
-  live recording, so it is not a sufficient recording-state interface.
-- The remote package manifest does not currently install `ros-humble-zed-msgs`.
-  Recording control can therefore avoid a new remote message dependency by
-  invoking the ROS services locally on the Jetson through authenticated SSH.
+- RGB and compressed depth use `sensor_msgs/msg/CompressedImage`.
+- RGB is already JPEG-compressed and can be decoded directly by current
+  browsers without re-encoding on the Jetson.
+- ROS `compressedDepth` includes a transport configuration header followed by
+  PNG-compressed depth data. The installed transport defines inverse-depth
+  quantization parameters for floating-point depth. A browser decoder must
+  interpret the header and reconstruct metric depth before applying the display
+  color mapping; stripping the header and showing the PNG as an ordinary image
+  is not sufficient evidence of correctness.
+- Draco point-cloud transport uses
+  `point_cloud_interfaces/msg/CompressedPointCloud2`. The message retains the
+  ROS header, dimensions, `PointField` metadata, layout, density flags, format,
+  and a `compressed_data` byte array.
+- Google Draco supplies a JavaScript/WebAssembly decoder for point clouds.
+  Compatibility between its decoded attributes and this installed ROS
+  transport's XYZ/RGB encoding has not yet been proven on a captured rig
+  message.
+- ROSBridge v2 supports WebSocket transport plus JSON, CBOR, and CBOR-RAW
+  encodings. The Jetson does not currently have `ros-humble-rosbridge-suite`
+  installed. The configured ROS apt repository currently offers version
+  `2.0.7-1jammy.20260606.004959` for this arm64 Jammy host.
 
-### Current control and network facts
+### Existing control and replay boundary
 
-- The Jetson hostname is currently `ubuntu`; Avahi and SSH are active, and
-  `ubuntu.local` resolves locally.
-- At this read the Jetson is connected to Wi-Fi connection `AsteraMesh` on
-  interface `wlP1p1s0` with dynamic address `192.168.20.45/24`.
-- `192.168.20.45` is an observed current lease, not a stable field identity and
-  must not be embedded as a permanent destination.
-- Planned field networks are AsteraMesh, Mars, and possibly MarsLink. Whether
-  Mars and MarsLink are one broadcast domain, separate subnets, or subject to
-  client isolation has not been measured.
-- ROS 2 currently uses domain `42`, Cyclone DDS, automatic interface selection,
-  and multicast-default discovery. SSH requires only routability; RViz data
-  additionally requires working DDS discovery and transport.
-- The receiving workstation's hostname, OS build, architecture, repository
-  location, SSH key state, firewall, and interfaces have not yet been captured.
+- `scripts/zed_field_session.sh` is the authoritative live/view/record
+  supervisor. It owns the transient user unit, state, command lock, storage
+  checks, SDK recording service calls, file-growth checks, finalization,
+  validation, and camera-release confirmation.
+- `scripts/zed_replay_session.sh` is the authoritative SVO2 replay supervisor.
+  The existing workstation replay console supplies dataset listing, arrow or
+  number selection, pause/play, sequential next-frame stepping, rate, loop,
+  restart, status, and safe stop.
+- Backward and arbitrary time seeking were deliberately removed after the
+  installed ZED `set_svo_frame` path blocked for unusable intervals and caused
+  failures under load.
+- The existing console treats control loss differently from clean `q`.
+  Disconnect leaves Jetson state untouched; clean quit finalizes an active
+  recording before stopping the exact owned unit.
+- The web interface must use these supervisors rather than call raw ZED
+  recording/replay services and bypass their validation or recovery behavior.
+
+### Current remote-computer and network boundary
+
+- The supported receiver is currently Ubuntu 22.04 with ROS 2 Humble, Cyclone
+  DDS, RViz2, image transports, and point-cloud transports.
+- `scripts/install_ros2_remote.sh` explicitly requires Jammy and apt packages;
+  it is not a macOS installer.
+- The current workstation receives DDS discovery and all preview data across
+  the LAN. Field work already exposed MTU, fragmentation, multicast discovery,
+  frozen-image, and stale-session behavior that required careful containment.
+- The proposed browser path can keep ROS 2/DDS on the Jetson and carry only
+  browser-oriented binary streams through an authenticated SSH tunnel.
+- AsteraMesh and Mars have both been used. `ubuntu.local` and observed DHCP
+  addresses are not a guaranteed unique identity on every future topology; the
+  existing `zed-jetson` SSH-alias recommendation remains valid.
+- The target MacBook model, CPU architecture, macOS version, Safari version,
+  available Chromium browser, wired/Wi-Fi interface, repository path, and SSH
+  key state have not yet been captured.
+
+### Current resource boundary
+
+- NEURAL depth, image publication, depth compression, and Draco compression
+  already execute on the Jetson for the RViz path.
+- RViz rendering and Draco decompression currently execute on the Ubuntu
+  workstation. In the browser path, depth/Draco decoding and 2D/3D rendering
+  should execute on the MacBook instead.
+- Forwarding already-compressed payloads does not inherently add ZED GPU work.
+  A bridge still adds CPU serialization/copying, SSH encryption, process
+  memory, socket buffers, and possible backpressure.
+- No browser-gateway CPU, RSS, GPU, power, temperature, wire-rate, or
+  end-to-end-latency measurement exists yet. Resource claims must remain
+  hypotheses until measured against the current RViz baseline.
 
 ## INFER
 
-- SSH should be the authenticated control plane. It starts/stops the Jetson
-  session and invokes recording services on the Jetson. ROS 2 remains the
-  color/depth/point-cloud data plane.
-- The workstation should target a stable logical host such as an SSH alias
-  `zed-jetson`, defaulting initially to `dusty@ubuntu.local` with an explicit
-  `--jetson USER@HOST` override. The script should display the resolved address
-  and fail closed on an unknown SSH host key.
-- SSID names should be reported for diagnostics but must not select the target
-  or encode IP addresses. A DHCP reservation on the Mars router is desirable
-  after its topology is known, but not required for the first implementation.
-- The Jetson live node should run as a named transient per-user systemd unit,
-  not as a permanent or boot-enabled service. This gives exact ownership,
-  logs, idempotent status, and `SIGINT` shutdown without broad process killing.
-- The controller needs an explicit state machine:
-  `DISCONNECTED -> STARTING -> VIEWING -> RECORDING -> FINALIZING -> VIEWING -> STOPPING`.
-  Unsupported transitions must be rejected rather than guessed.
-- Starting the console must always enter `VIEWING`; it must never start a
-  recording automatically or resume recording merely because a preset was
-  selected.
-- Recording quality and preview bandwidth are different controls. T1 proved
-  only generic lossless recording. H.264 and H.265 both rejected every frame,
-  including H.264 with ULTRAFAST encoding, asynchronous image retrieval, and
-  IPC disabled. The field UI must therefore expose only `lossless`; preview
-  bandwidth remains a launch profile because changing it may restart the node.
-- `r` should create a timestamped temporary SVO2 name on the Jetson and call
-  the start service. `s` should stop/finalize, validate the file, and only then
-  promote it to its final filename. The terminal should show a persistent red
-  recording state, selected preset, elapsed time, path, and free space.
-- A workstation or network disconnect should leave the named Jetson session
-  and any active recording running. Reconnection should attach to the existing
-  state rather than opening the cameras a second time.
-- Clean `q` should stop/finalize an active recording first, validate it, close
-  RViz and its transport helpers, then send `SIGINT` to the exact transient
-  Jetson unit and confirm both cameras return to `AVAILABLE`.
-- Closing RViz alone should not terminate or finalize a recording. The terminal
-  controller remains the authoritative lifecycle UI.
-- The proven direct recorder remains the field fallback until in-process ROS
-  recordings match its integrity checks and replay successfully.
+### Proposed architecture
 
-## DE-RISK
+- Keep the existing ZED ROS node, profiles, session supervisors, topics, and
+  SVO2 recording/replay paths unchanged.
+- Add one on-demand Jetson web gateway that:
+  - binds only to Jetson loopback;
+  - subscribes once to the existing compressed RGB, compressed-depth, and
+    Draco topics;
+  - forwards binary payloads without image, depth, or point-cloud re-encoding;
+  - retains at most the newest message per stream;
+  - fans out the same retained payload if read-only multi-client support is
+    later enabled;
+  - exposes a narrow, fixed control surface backed by the existing session
+    supervisors.
+- Use ROSBridge with binary CBOR/CBOR-RAW as the first transport implementation
+  because it reuses the current ROS messages and minimizes custom Jetson code.
+  Keep the browser transport adapter isolated so profiling can replace
+  ROSBridge with a small C++ `rclcpp` gateway without rewriting visualization
+  or control behavior.
+- Do not use JSON/base64 for image, depth, or point-cloud payloads.
+- Use independent/latest-only stream handling so a large cloud cannot queue
+  stale RGB/depth frames behind it. If one WebSocket produces head-of-line
+  blocking, split image/depth/cloud across separate loopback WebSockets before
+  considering a different protocol.
+- Serve a prebuilt static application. Node/npm may be used for a pinned,
+  reproducible development build, but Node is not a Jetson field-runtime
+  dependency.
+- Vendor and checksum every runtime asset, including Three.js, orbit controls,
+  the Draco WebAssembly decoder, and any 16-bit PNG/depth decoder. Do not load
+  a CDN in normal or fallback operation.
 
-- **Approval boundary:** before this gate is approved, do not add scripts,
-  install packages, create units, call a recording service, alter SSH/network
-  configuration, or open the cameras for this line of work.
-- **Driver/Argus boundary:** do not install, rebuild, reload, replace, or
+### Proposed browser rendering
+
+- Decode RGB using browser-native JPEG facilities and present only the newest
+  completed frame.
+- Decode compressed depth in a Web Worker, reconstruct metric Z from the
+  transport header/quantization parameters, and colorize using a documented
+  shader that matches the current RViz normalized-depth behavior.
+- Decode Draco in a Web Worker/WASM, transfer typed arrays rather than clone
+  them, reuse Three.js `BufferGeometry`, and preserve XYZ plus packed RGB.
+- Render the 3D scene in the `zed_camera_link` convention: X forward, Y left,
+  Z up. Reproduce the current XY grid, axes, two-pixel colored points, starting
+  view, orbit, pan, zoom, and reset/focus controls.
+- Present fixed RGB, depth, and cloud panels by default. Resizing a panel must
+  not alter source publication rates or start another subscription.
+- Define equivalence with fixtures and numeric comparisons:
+  - identical source timestamps and frame identities;
+  - RGB decoded from the identical JPEG payload;
+  - metric depth samples matching the ROS decoder within an explicit tolerance;
+  - cloud point count, XYZ, RGB, frame, and bounds matching the ROS Draco
+    decoder within the codec's existing quantization;
+  - axes/grid/view conventions matching `virtual_stereo.rviz`.
+
+### Proposed launcher and security model
+
+- Add a portable `scripts/zed_web_console.sh` that runs on macOS and Linux with
+  only POSIX shell tools, OpenSSH, and a supported browser.
+- Proposed normal commands:
+
+  ```bash
+  ./scripts/zed_web_console.sh --jetson zed-jetson
+  ./scripts/zed_web_console.sh --jetson zed-jetson --outdoor
+  ./scripts/zed_web_console.sh --jetson zed-jetson --replay
+  ```
+
+- The launcher should verify the SSH host key and rig identity, start or attach
+  to the appropriate Jetson transient session, establish a local port forward,
+  and open `http://127.0.0.1:<allocated-port>/`.
+- Bind the gateway to `127.0.0.1` on the Jetson and reach it only through SSH.
+  Do not expose an unauthenticated ROSBridge/WebSocket/HTTP port to AsteraMesh,
+  Mars, MarsLink, or a Starlink-facing interface.
+- Browser commands must map to a fixed allowlist such as status, record-start,
+  record-stop, live-stop, replay-list, replay-start, replay-toggle,
+  replay-next-frame, replay-rate, replay-loop, and replay-stop. Never accept a
+  shell command, arbitrary path, arbitrary ROS service, or arbitrary topic
+  publication from browser input.
+- A read-only status/stream connection may be shared later, but exactly one
+  controller lease may issue state-changing commands. Duplicate control must
+  fail visibly rather than race.
+
+### Proposed lifecycle and operator behavior
+
+- Browser startup is view-only. Recording remains off until an explicit
+  control action.
+- The current standard/outdoor profile is selected before camera launch and is
+  displayed prominently from Jetson-reported state.
+- Recording controls retain the current temporary-file, file-growth,
+  finalization, `ZED_SVO_Editor` validation, promotion, storage-reserve, and
+  camera-ownership behavior.
+- The browser displays a continuously visible recording indicator, duration,
+  saved bytes, write rate, capacity estimate, active/final path, and validation
+  result.
+- Closing a browser tab, losing the SSH tunnel, sleeping the MacBook, or
+  changing Wi-Fi leaves the Jetson live session and active recording running.
+  Reopening the launcher attaches and reports actual state.
+- Clean quit explicitly finalizes any recording, stops the exact live/replay
+  unit, confirms camera availability where applicable, and then closes the
+  tunnel.
+- Live and replay feed the same browser rendering components. Mode-specific
+  controls remain separate so a replay command can never reach the live camera
+  session.
+- The current Ubuntu/RViz console and replay console remain supported rollback
+  paths until browser acceptance is complete.
+
+### Proposed resource behavior
+
+- Preserve the exact current `field.yaml` and `outdoor.yaml` publication rates
+  and resolutions for the first release.
+- Subscribe to transports only while at least one authenticated browser session
+  is active; an idle gateway must not keep compression work alive.
+- Move JPEG/depth/Draco decoding and all rendering to browser workers/GPU.
+  Do not colorize depth, expand Draco to raw `PointCloud2`, or render 3D on the
+  Jetson merely for browser delivery.
+- Use bounded single-message queues and drop obsolete preview messages. The
+  newest valid view is more useful than complete but increasingly stale
+  preview delivery.
+- Compare browser and RViz using the same scene, profile, rates, and recording
+  state. A browser release is not accepted merely because it looks responsive.
+
+## DERISK
+
+- **Approval boundary:** do not install ROSBridge or web dependencies, add
+  code, create a unit, expose a port, open the cameras, replay an SVO, or modify
+  offline caches until the user approves this READ/INFER/DERISK gate.
+- **Camera-stack boundary:** do not install, rebuild, reload, replace, or
   restart JetPack/L4T, the GMSL driver, ZED SDK, `nvargus-daemon`, or
-  `zed_x_daemon`. A controller failure is not evidence of a camera-driver fault.
-- **Calibration boundary:** retain exact serial order and verify virtual
-  calibration checksum before live launch. Never write physical-camera factory
-  calibration files.
-- **Service-contract risk:** treat the compression-mode metadata disagreement
-  as unresolved. Probe candidate modes with short recordings; record the actual
-  codec, service response, diagnostics, frame count, file size, and replay
-  result before assigning a preset name.
-- **Recording-integrity risk:** start with 10-20 second bounded recordings.
-  Require `SVO Recording: ACTIVE`, file growth, successful stop response,
-  nonzero indexed frames from `ZED_SVO_Editor -inf`, correct virtual serial,
-  successful replay, and expected left/right orientation.
-- **Finalization risk:** never kill the wrapper while recording. `q`, signals,
-  and error cleanup must call stop/finalize and wait with a bounded timeout.
-  If finalization cannot be confirmed, preserve the temporary file, report its
-  exact path, and do not label it valid.
-- **Storage risk:** check the output directory, write permission, free bytes,
-  and a configurable reserve before start. Show estimated remaining minutes
-  using measured per-preset rates. Monitor diagnostics and file growth; stop
-  safely on sustained SDK write errors rather than filling the disk silently.
-- **Camera-ownership risk:** take a Jetson-side lock before starting the
-  transient unit. If another known owner exists, print its exact PID/command
-  and refuse. If the named unit already owns the pair, offer attach/status;
-  never use `pkill`, kill by name, or terminate an unrelated process.
-- **Duplicate-controller risk:** serialize recording commands Jetson-side and
-  make start/stop idempotent. A second workstation must see the current owner
-  and state; it must not create a second session or recording.
-- **Disconnect risk:** test SSH loss during view and during recording. The
-  Jetson must continue safely, retain logs/state, accept reconnection, and
-  finalize later. A clean user exit remains distinct from a transport loss.
-- **State-observability risk:** do not rely only on the playback-oriented
-  `SvoStatus` topic. Reconcile service responses, Jetson-side session state,
-  wrapper diagnostics, file existence/growth, and transient-unit status.
-- **Network-discovery risk:** prove SSH and DDS separately. Test multicast on
-  each network and add a scoped Cyclone DDS peer fallback when necessary.
-  Never respond to DDS failure by restarting Argus or changing calibration.
-- **Addressing/security risk:** require SSH keys and normal host-key checking;
-  never embed a password or disable `StrictHostKeyChecking`. ROS 2 Humble DDS
-  traffic is not authenticated by this design, so operate only on trusted LANs
-  or add DDS security as a separately approved scope.
-- **Performance risk:** measure live view rates and recording health together
-  for every accepted preset. Reject a preset that destabilizes acquisition,
-  depth publication, thermals, or storage even if the output file finalizes.
-- **UI risk:** single-key actions must be visible and state-dependent. Quality
-  cannot change mid-recording; stop/save cannot report success before SDK
-  finalization and validation; destructive deletion is out of scope.
-- **System-mutation risk:** any systemd use is transient and per-user. Do not
-  add a boot-enabled system service, modify camera services, or change network
-  profiles automatically.
-- **Rollback:** retain the current live/RViz launchers and direct recorder.
-  Removing the new controller must restore the current topology without
-  uninstalling ROS, changing calibration, or touching camera daemons.
+  `zed_x_daemon`. Browser/gateway failure is not evidence of a driver fault.
+- **Calibration/capture boundary:** retain exact serial order, calibration
+  checksum, HD1200/15 FPS acquisition, NEURAL depth, profile exposure settings,
+  and lossless SVO2 behavior. Reject any implementation that changes these as
+  an incidental viewer side effect.
+- **Quality/frequency boundary:** first acceptance is fixed at RGB/depth
+  960x600/5 Hz and reduced cloud/2 Hz. Higher-rate or higher-resolution preview
+  is a separate future approval and benchmark.
+- **Codec-correctness risk:** capture small versioned fixtures from each
+  compressed topic. Compare browser depth and cloud outputs numerically against
+  the installed ROS decoders before live visual acceptance.
+- **Depth risk:** test NaN, infinity, zero, too-near, too-far, invalid, and
+  inverse-depth cases. A plausible color image is not proof that metric Z was
+  decoded correctly.
+- **Draco risk:** prove XYZ and RGB attribute identity, point count, coordinate
+  handedness, frame, quantization, and invalid-point handling. Do not silently
+  substitute a raw cloud across Wi-Fi if browser decoding fails.
+- **Visual-equivalence risk:** maintain screenshot/fixture acceptance for RGB,
+  depth color mapping, point size/color, grid spacing, axes orientation, initial
+  camera pose, and orbit controls. Document intentional differences from RViz.
+- **Backpressure risk:** instrument sequence/timestamp age, receive/decode/render
+  rates, drops, and queue depth. Every queue is bounded; stale frames are
+  discarded rather than delivered late.
+- **Resource risk:** measure Jetson CPU per process, GPU load, RAM/RSS,
+  temperature, power mode, topic rates, SVO write health, and network bytes for
+  RViz baseline versus browser. Test view-only and simultaneous lossless
+  recording. No claim of lower load is accepted without those measurements.
+- **Browser risk:** test the actual MacBook's Safari/WebGL2/WebAssembly behavior
+  and one current Chromium browser. Record model, architecture, OS, browser
+  version, decode rates, memory growth, sleep/wake, tab-background behavior,
+  and GPU-reset recovery.
+- **Network risk:** test AsteraMesh and Mars separately. SSH success, HTTP page
+  load, WebSocket stream health, reconnect, and recording survival must be
+  proven without depending on LAN multicast or internet.
+- **Security risk:** bind only to loopback, require SSH key and normal host-key
+  verification, allocate a local forwarded port safely, apply origin checks,
+  and expose no arbitrary ROS/shell interface. Store no password or private key
+  in the repository.
+- **Control-integrity risk:** route mutations through existing locked session
+  helpers. Reconcile browser UI with Jetson-reported state after every action;
+  optimistic UI alone cannot declare recording or finalization success.
+- **Disconnect risk:** close the tab, kill the browser, kill the launcher, drop
+  Wi-Fi, suspend the laptop, and terminate the tunnel during view and recording.
+  The Jetson must remain safe and later attach/finalize correctly.
+- **Replay risk:** retain forward-only controls. Do not reintroduce backward or
+  arbitrary SVO seeking unless the installed SDK later passes a separately
+  approved bounded-latency test.
+- **Offline risk:** remove internet access during acceptance. The page, workers,
+  WASM, fonts, gateway packages, SSH launcher, live view, recording controls,
+  dataset browser, and replay must all function from retained artifacts.
+- **Multi-client risk:** first release supports one controlling browser.
+  Additional viewers must be read-only and consume shared encoded payloads; do
+  not multiply Jetson encoders or permit competing recording actions.
+- **Rollback:** retain the current `zed_field_console.sh`,
+  `zed_replay_console.sh`, RViz profile, ROS receiver installer, and direct
+  recorder. Removing the web gateway must require no camera, calibration,
+  driver, or network repair.
 
-## Settled decisions pending approval of this gate
+## Decisions awaiting approval
 
-- Proposed viewer command: `scripts/zed_field_console.sh` with full copy/paste
-  examples in `--help`.
-- Default target: SSH alias `zed-jetson` when configured, otherwise an explicit
-  `--jetson dusty@ubuntu.local`; no SSID-specific destination logic.
-- Control plane: SSH. Data plane: ROS 2 domain 42 with Cyclone DDS.
-- Jetson lifecycle: one named transient per-user unit, never boot-enabled.
-- Initial state: view-only. Recording always requires an explicit `r` key.
-- Revised key contract after T1: `r` start lossless; `s` stop/finalize/save;
-  `i` status/storage/path; `v` reopen RViz; `h` help; `q` finalize if needed
-  and close the complete session safely.
-- Active recordings survive loss of RViz, the controller, or the network.
-- `lossless` is the only accepted recording preset. H.264/H.265 controls are
-  deliberately unavailable rather than producing corrupt or zero-frame files.
-- Recording files live on the Jetson. No automatic file transfer or deletion
-  is included in this first line of work.
-- Preview quality is a launch profile, not a mid-recording keybinding.
-- The direct SDK recorder remains the authoritative fallback until the final
-  acceptance gate passes.
+- Browser delivery replaces, rather than accompanies, RViz in normal use.
+- Initial browser quality and frequency exactly match the current field profile.
+- ROS and DDS remain Jetson-local; the Mac receives binary browser streams
+  through an SSH tunnel.
+- First transport implementation uses loopback-only ROSBridge with binary
+  CBOR/CBOR-RAW, behind an adapter and subject to resource measurements.
+- Browser runtime is static/offline; no Node, CDN, cloud, account, VNC, ZED SDK,
+  ROS, or CUDA is required on the Mac.
+- Three.js plus vendored Draco WASM renders the colored cloud; depth decoding
+  and both heavy codecs run in browser workers.
+- Existing Jetson session scripts remain authoritative for live ownership,
+  recording, validation, replay, failure recovery, and safe shutdown.
+- The browser begins view-only, shows Jetson-reported state, and preserves
+  current disconnect-survival behavior.
+- Backward and arbitrary replay seeking remain unavailable.
+- The Ubuntu/RViz path remains installed and documented as rollback until all
+  browser gates pass.
 
 ## Ordered tasks
 
-- [x] **APPROVAL GATE - accept READ / INFER / DE-RISK and settled decisions.**
-  - Approved by the user on 2026-07-21.
-  - Resolve any rejected inference or safety behavior in this file first.
-  - Do not implement or run an in-process recording test before approval.
+- [ ] **APPROVAL GATE - accept READ / INFER / DERISK and pending decisions.**
+  - Resolve rejected assumptions in this document before implementation.
+  - User approval authorizes this bounded line of work, not unrelated camera,
+    driver, network-router, cloud, or capture-quality changes.
 
-- [ ] **T0 - freeze the receiver, SSH, network, and lifecycle contract.**
-  - Capture the intended workstation's Ubuntu version, architecture, hostname,
-    interfaces, current SSID/address, firewall, repository path, ROS version,
-    and installed receiver packages.
-  - Verify key-based SSH, normal host-key verification, `ubuntu.local`/alias
-    resolution, noninteractive command execution, and the fixed Jetson repo path.
-  - Observe AsteraMesh multicast, routing, and client isolation without changing
-    the router. Record what remains unknown for Mars and MarsLink.
-  - Specify the transient-unit name, lock, state file, log path, output directory,
-    signal behavior, attach behavior, and bounded shutdown/finalization timeouts.
-  - Current Jetson evidence is `Linger=no` plus an active local X11 session. The
-    helper accepts that persistent session and otherwise requires the documented
-    one-time `sudo loginctl enable-linger dusty` before it opens cameras.
-  - **Gate:** both machines and every lifecycle transition have an explicit,
-    reviewable identity before camera or recording tests.
+- [ ] **T0 - freeze browser, fixture, protocol, and baseline contracts.**
+  - Capture the target MacBook hardware, architecture, macOS, Safari, optional
+    Chromium, SSH, interface, and expected repository/launcher location.
+  - Record the exact installed ROS message definitions, compressed-depth header
+    layout, Draco transport version/settings, RViz display settings, and topic
+    QoS.
+  - Capture short, non-sensitive RGB/depth/Draco fixtures from synchronized
+    live or replay output plus ROS-decoded reference values and screenshots.
+  - Measure current RViz baseline rates, message sizes, latency/staleness,
+    Jetson process CPU/GPU/RAM/temperature/power, network bytes, and recording
+    health using the current field profile.
+  - Specify versioned binary WebSocket envelopes, timestamps, frame IDs,
+    stream IDs, status/error messages, control allowlist, and compatibility
+    version.
+  - **Gate:** every browser output and performance comparison has a fixed,
+    reviewable input and baseline before UI implementation.
 
-- [x] **T1 - prove wrapper recording locally on the Jetson.**
-  - Start the existing live ROS launcher with no remote controller and confirm
-    view-only topics/rates first.
-  - Inspect advertised service names and types at runtime.
-  - For each candidate compression/bitrate combination, record 10-20 seconds at
-    15 FPS to a unique temporary filename while RGB/depth/cloud subscribers run.
-  - Observe diagnostics and file growth during recording; call stop and wait for
-    the response before stopping the live node.
-  - Validate virtual serial, indexed frames, resolution, FPS, duration, file
-    size, replay, left/right orientation, and NEURAL depth generation.
-  - Stop the node normally and confirm both cameras immediately return to
-    `AVAILABLE` without a daemon restart.
-  - **Gate result:** generic lossless passed with 523 indexed 1920x1200/15 FPS
-    frames, virtual serial `116863460`, successful NEURAL RGB/depth/cloud replay
-    at `4.836/4.371/2.054 Hz`, and clean shutdown. H.264 at default and 12 Mb/s
-    and H.265 at default rejected every frame. ULTRAFAST H.264 with asynchronous
-    retrieval and IPC disabled also failed. Scope is revised to lossless only.
+- [ ] **T1 - prove browser decoding without a live camera.**
+  - Build an offline static fixture viewer with pinned local assets.
+  - Decode identical JPEG bytes and verify dimensions and sampled pixels.
+  - Implement compressed-depth header/PNG decoding and compare metric samples,
+    validity masks, ranges, and colorized output against ROS/RViz references.
+  - Decode the captured Draco payload with WASM and compare point count, XYZ,
+    RGB, bounds, invalids, frame, and quantization against the ROS decoder.
+  - Run codecs in workers with transferable buffers and prove bounded memory
+    over a long repeated-fixture test.
+  - **Gate:** all three products match references numerically and visually
+    without ROS, ZED SDK, network, or camera access on the browser machine.
 
-- [x] **T2 - implement the Jetson-side session supervisor.**
-  - Add a source-controlled helper that owns the exact transient unit, lock,
-    state file, logs, recording-service calls, diagnostics checks, and validation.
-  - Implement explicit `start`, `attach/status`, `record-start`, `record-stop`,
-    and `stop` operations with machine-readable results and useful human output.
-  - Use temporary recording names and promote only validated files. Preserve and
-    report failed/incomplete files without deleting them.
-  - Reject bad paths, insufficient free space, invalid presets, wrong node/service
-    identity, replay mode, duplicate recording, and foreign camera ownership.
-  - Ensure every stop path uses `SIGINT` on the exact unit after recording is
-    finalized; verify camera release without restarting services.
-  - **Gate:** helper state transitions and failure exits pass locally, including
-    duplicate commands and simulated service/validation failures.
-  - **Gate result:** `zed_field_session.sh` launched one named transient unit,
-    attached idempotently, rejected simulated low space, rejected H.264, rejected
-    a duplicate recording, reported `SVO Recording: ACTIVE`, finalized and
-    validated 382 indexed frames (1,485,704,318 bytes), stopped with SIGINT,
-    and returned both cameras to `AVAILABLE`. No camera daemon was restarted.
+- [ ] **T2 - implement the loopback Jetson gateway and SSH transport.**
+  - Pin and cache the approved ROSBridge package and dependencies for arm64
+    Jammy, or record why the profiled adapter must be replaced by C++.
+  - Subscribe once to the three compressed sources and forward binary data with
+    one-message buffers, timestamps, drop counters, and stream health.
+  - Serve versioned static assets from loopback and reject non-tunnel access,
+    invalid origins, unknown protocol versions, arbitrary ROS operations, and
+    malformed/oversized messages.
+  - Add an on-demand transient user unit; do not boot-enable it.
+  - Add a macOS/Linux SSH launcher with safe port allocation, host/rig
+    verification, attach behavior, browser opening, and clear manual fallback.
+  - **Gate:** a browser receives all three fixture/live-replay streams through
+    the tunnel with no DDS traffic on the LAN and no unbounded process/socket
+    growth.
 
-- [ ] **T3 - implement the one-command workstation console.**
-  - Add `scripts/zed_field_console.sh` (or a small standard-library helper behind
-    it) with full copy/paste `--help`, `--jetson`, and `--view-profile` examples.
-  - Run SSH/network preflight, print resolved target and current network, start or
-    attach to the Jetson session, verify ROS discovery/topics, then open RViz.
-  - Implement the approved state-dependent keybindings and a continuously clear
-    view/record/finalize/error indicator.
-  - Keep the controller usable if RViz closes; allow RViz restart without touching
-    the camera or active recording.
-  - On clean `q`, finalize if necessary, close local helpers, stop the exact
-    Jetson session, and print recording and camera-release results.
-  - **Gate:** one workstation command can enter view-only mode and exit cleanly
-    without recording, manual Jetson commands, VNC, or orphan processes.
-  - **Implementation result:** the console and full copy/paste help are present.
-    A simulated SSH target exercised view-only startup and `r/i/s/q` successfully;
-    SSH host-key failure also failed closed without changing Jetson state. The
-    first actual receiver cold start proved SSH and DDS but exposed a successful
-    Jetson status being returned as failure; commit `ebcc1f9` corrected it. The
-    next receiver run exposed blank image bridges, raw-cloud degradation, and q
-    cleanup/input races. The revised launcher requires real RGB/depth/cloud
-    messages and RViz subscriptions, uses Draco for the preview cloud, isolates
-    the viewer process group, bounds shutdown, and prevents SSH from consuming
-    terminal keys. Local acceptance reached the readiness gate on all three
-    streams and the isolated group exited after SIGINT. The next receiver run
-    showed `NO IMAGE` in both visible docks; live probing corrected the initial
-    layout diagnosis. Native RGB/depth/cloud measured 5/5/2 Hz and compressed
-    Jetson outputs measured 5/5/2 Hz, while the network receiver got no image
-    samples. The common DDS profile allowed 65.5 KB UDP payloads across a
-    1500-byte Wi-Fi MTU; measured samples were about 174 KB RGB, 60 KB depth,
-    and 69 KB Draco. A Jetson-specific profile now caps initial and retransmit
-    UDP payloads at 1400 bytes with 1344-byte DDSI fragments and unicast user
-    data. A retry delivered one frozen RGB frame and no depth before the failed
-    health gate stopped the session. The receiver has therefore been simplified:
-    RViz now subscribes directly to the wrapper's standard `/compressed` and
-    `/compressedDepth` image transports; both image republisher processes and
-    their raw DDS topics were removed. Only the required Draco-to-PointCloud2
-    decoder remains. The gate remains open until the actual receiver repeats
-    visible images, recording, q, and orphan checks.
+- [ ] **T3 - reproduce the RViz field view in the browser.**
+  - Implement fixed RGB and depth panels plus a Three.js point-cloud panel.
+  - Match `zed_camera_link`, XY grid, axes, RGB8 cloud color, two-pixel points,
+    initial orbit view, pan/zoom/focus/reset, and responsive layout.
+  - Display source rate, rendered rate, timestamp age, dropped messages,
+    connection state, active profile, and live/replay mode without covering
+    scientific content.
+  - Ensure layout changes do not change source subscriptions or camera profile.
+  - **Gate:** side-by-side fixture and live-replay comparison passes the
+    documented numeric, screenshot, orientation, and interaction criteria.
 
-- [ ] **T4 - prove interactive recording and recovery on AsteraMesh.**
-  - Exercise each accepted preset from the workstation while RViz displays all
-    three required products. Verify remote key latency and state consistency.
-  - Measure recording frame count/rate, size rate, preview rates, network traffic,
-    Jetson CPU/GPU/memory/temperature/power, and SDK/Argus diagnostics.
-  - Exercise: RViz close/reopen, SSH loss while viewing, SSH loss while recording,
-    controller crash, duplicate controller, reconnect/attach, low-space refusal,
-    stop timeout, and clean shutdown.
-  - Confirm active recording continues across control loss and can later be
-    finalized, validated, replayed, and found at the reported path.
-  - **Gate:** the AsteraMesh workflow survives realistic operator and network
-    failures without corrupting a validated recording or wedging camera ownership.
+- [ ] **T4 - integrate safe live viewing and recording controls.**
+  - Start/attach through `zed_field_session.sh` with standard or outdoor
+    profile, beginning in view-only state.
+  - Expose only fixed status, record-start, record-stop/finalize, reopen/attach,
+    and safe-quit operations through the locked supervisor.
+  - Reproduce the prominent recording state, elapsed time, bytes, write rate,
+    capacity, paths, validation result, and actionable errors.
+  - Exercise duplicate control, low space, SDK refusal, ambiguous finalization,
+    browser/tunnel loss, reconnect, and clean shutdown.
+  - **Gate:** browser control produces the same validated SVO2 and recovery
+    semantics as the proven terminal console without bypassing safeguards.
 
-- [ ] **T5 - establish deterministic Mars and MarsLink operation.**
-  - Record whether Mars and MarsLink share a subnet/broadcast domain and whether
-    either enables AP/client isolation or suppresses multicast.
-  - Establish a DHCP reservation or documented hostname/address mapping when the
-    Mars router topology is final; do not silently alter router configuration.
-  - Repeat SSH, DDS discovery, rates, disconnect/reconnect, record/finalize, and
-    replay acceptance on every supported network.
-  - Add and test a scoped Cyclone DDS peer fallback if multicast is unreliable;
-    leave the camera stack unchanged.
-  - **Gate:** each supported network has a named, measured connection procedure
-    and no field command depends on guessing an SSID-derived address.
+- [ ] **T5 - integrate the remote SVO2 dataset browser and replay.**
+  - Reuse `zed_replay_session.sh` listing, validation, and playback state.
+  - Implement newest-first datasets, arrow/number selection, pause/play,
+    forward-one-frame, rate, loop, restart, status, dataset switch, and stop.
+  - Feed replay through the same RGB/depth/cloud rendering pipeline and expose
+    frame/duration/progress state.
+  - Confirm that no backward or arbitrary seek control is exposed.
+  - **Gate:** multiple valid SVO2 files can be selected and reviewed without
+    ZED SDK/ROS on the Mac or a hung playback control.
 
-- [ ] **T6 - finish offline packaging, documentation, and release acceptance.**
-  - Update README, setup, field guide, recorder guide, and ROS remote-viewing
-    guide only with behavior that passed its gate.
-  - Add exact one-time SSH-key/alias setup, normal operation, keybindings, preset
-    measurements, output paths, attach/recovery, validation, replay, and rollback.
-  - Ensure workstation dependencies and architecture-specific offline packages
-    are cached; field operation must require no internet.
-  - Run shell/static checks, repository tests, checksum checks, Markdown-link
-    checks, dry-runs, and `git diff --check`.
-  - Rehearse cold start to view-only, record/finalize, reconnect, replay, safe
-    exit, camera availability, and direct-recorder rollback with internet absent.
-  - **Gate:** another operator can run one workstation command and safely view,
-    record, recover, and exit from the written field procedure alone.
+- [ ] **T6 - prove resource, recording, and network behavior.**
+  - Compare current RViz versus browser at identical 5/5/2 rates in view-only
+    and lossless-recording states.
+  - Measure Jetson total/per-process CPU, GPU, RAM/RSS, temperatures, power,
+    topic rates, compression rates, socket queues, network bytes, SVO frame
+    count/write rate, and Argus/ZED diagnostics.
+  - Measure browser CPU/GPU/memory, receive/decode/render rates, timestamp age,
+    drops, background-tab behavior, sleep/wake, and reconnect.
+  - Repeat on AsteraMesh and Mars with RViz closed and internet unavailable.
+  - **Gate:** browser delivery preserves camera/depth/recording health, does not
+    add material GPU work, has bounded CPU/RAM/latency, and is no less reliable
+    than the measured RViz baseline.
+
+- [ ] **T7 - finish offline packaging, documentation, and rollback acceptance.**
+  - Cache Jetson packages per architecture and vendor/checksum every browser
+    runtime asset. Prove installation from the retained offline tree.
+  - Document exact Mac setup, SSH alias/key, standard/outdoor live launch,
+    controls, reconnect, recording, replay, errors, resource expectations,
+    clean exit, and RViz/direct-recorder rollback.
+  - Add static checks, frontend tests, codec fixtures, protocol tests, shell
+    checks, Markdown-link checks, dry-runs, and `git diff --check`.
+  - Rehearse a cold offline Mac-to-Jetson session: view-only, record,
+    disconnect, reconnect, finalize, replay, safe stop, camera availability,
+    and rollback.
+  - **Gate:** another operator can perform the complete browser workflow from
+    the written offline procedure alone.
 
 ## Acceptance summary
 
 This line of work is complete only when all of the following are true:
 
-- One workstation command starts or attaches to the correct Jetson and opens the
-  calibrated view without starting a recording.
-- Accepted keybindings start, visibly monitor, stop, finalize, validate, and
-  report synchronized virtual-stereo SVO2 files on the Jetson.
-- The shipped lossless preset has measured frame/file/replay evidence on this
-  exact virtual pair; failed lossy numeric modes are not exposed.
-- Active recording survives RViz, controller, and network loss and is recoverable
-  from a second controller session.
-- Clean exit finalizes first, stops only the owned transient unit, and returns
-  both cameras to `AVAILABLE` without daemon restart or reboot.
-- AsteraMesh and every supported Mars/MarsLink topology have passed SSH and DDS
-  discovery, view, recording, recovery, and clean-shutdown acceptance.
-- No password, static lease guess, disabled host-key check, VNC, cloud service,
-  internet dependency, boot camera service, or camera-stack mutation is required.
-- The existing direct recorder still works as a documented rollback path.
+- A MacBook with no ROS, RViz, ZED SDK, CUDA, VNC, branded viewer, account, or
+  internet connection opens the self-hosted field interface through SSH.
+- RGB, metric registered depth, colored point cloud, grid, axes, frame
+  convention, and controls match the defined RViz-equivalence fixtures.
+- Preview remains 960x600/5 Hz for RGB/depth and reduced/2 Hz for the cloud;
+  acquisition and lossless recording remain 1920x1200/15 FPS.
+- The browser begins view-only and safely controls Jetson-local recording with
+  visible, reconciled state and validated final files.
+- Live control survives browser, laptop, tunnel, and Wi-Fi loss without
+  corrupting or silently stopping a recording.
+- Dataset selection and forward-only replay work through the same viewer
+  without a ZED installation on the Mac.
+- DDS does not cross the field LAN in normal browser use; the web gateway is
+  loopback-only and reachable only through authenticated SSH.
+- Runtime assets and packages are available offline, queues and memory are
+  bounded, and measured Jetson GPU/CPU/RAM/network/recording behavior passes
+  the documented comparison with RViz.
+- The existing Ubuntu/RViz console, replay console, and direct recorder remain
+  functional rollback paths.
