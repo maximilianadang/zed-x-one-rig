@@ -19,9 +19,14 @@
 body {
   margin: 0;
   min-width: 320px;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   background: radial-gradient(circle at 50% -20%, #1a2931 0, var(--bg) 42rem);
   color: var(--text);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
 }
 
 button,
@@ -30,8 +35,8 @@ input {
 }
 
 .topbar {
-  min-height: 78px;
-  padding: 14px 20px;
+  min-height: 58px;
+  padding: 8px 14px;
   border-bottom: 1px solid var(--line);
   display: flex;
   align-items: center;
@@ -53,7 +58,7 @@ h2 {
 
 h1 {
   font-family: system-ui, sans-serif;
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 680;
 }
 
@@ -71,7 +76,7 @@ h2 {
 }
 
 .pill {
-  padding: 6px 9px;
+  padding: 5px 8px;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--panel-2);
@@ -94,10 +99,8 @@ h2 {
 }
 
 .recording-banner {
-  position: sticky;
   z-index: 20;
-  top: 0;
-  min-height: 48px;
+  min-height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -107,6 +110,24 @@ h2 {
   background: #8f1722;
   box-shadow: 0 4px 20px #0009;
   color: white;
+}
+
+.global-alert {
+  position: fixed;
+  z-index: 50;
+  top: 64px;
+  left: 50%;
+  width: min(760px, calc(100vw - 24px));
+  padding: 10px 14px;
+  transform: translateX(-50%);
+  border: 1px solid #a8414b;
+  border-radius: 7px;
+  background: #531a20f2;
+  box-shadow: 0 8px 30px #000b;
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
 }
 
 .record-dot {
@@ -123,11 +144,11 @@ h2 {
 
 .dashboard {
   display: grid;
-  grid-template-columns: minmax(280px, 1fr) minmax(280px, 1fr) minmax(280px, .72fr);
-  grid-template-rows: minmax(300px, 43vh) minmax(360px, 1fr);
-  gap: 10px;
-  padding: 10px;
-  min-height: calc(100vh - 132px);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) clamp(260px, 27vw, 360px);
+  grid-template-rows: minmax(0, 42%) minmax(0, 58%);
+  gap: 7px;
+  min-height: 0;
+  padding: 7px;
 }
 
 .panel {
@@ -140,8 +161,8 @@ h2 {
 }
 
 .panel-title {
-  height: 40px;
-  padding: 0 12px;
+  height: 34px;
+  padding: 0 9px;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -158,7 +179,7 @@ h2 {
   position: relative;
   overflow: hidden;
   width: 100%;
-  height: calc(100% - 40px);
+  height: calc(100% - 34px);
   background: #030506;
 }
 
@@ -184,6 +205,16 @@ h2 {
   font-size: 15px;
   letter-spacing: .1em;
   pointer-events: none;
+  padding: 18px;
+  text-align: center;
+  white-space: pre-wrap;
+}
+
+.empty-state.error {
+  color: var(--red);
+  font-size: 12px;
+  letter-spacing: 0;
+  line-height: 1.45;
 }
 
 .range-label {
@@ -204,19 +235,28 @@ h2 {
 .controls-panel {
   grid-column: 3;
   grid-row: 1 / 3;
-  overflow-y: auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .control-group {
   display: grid;
-  gap: 9px;
-  padding: 12px;
+  gap: 6px;
+  padding: 8px;
   border-bottom: 1px solid var(--line);
 }
 
+#replay-controls {
+  min-height: 0;
+  flex: 1 1 auto;
+  grid-template-rows: auto auto auto auto minmax(70px, 1fr) auto auto;
+}
+
 button {
-  min-height: 40px;
-  padding: 8px 12px;
+  min-height: 32px;
+  padding: 5px 9px;
   border: 1px solid #3b4d57;
   border-radius: 6px;
   background: #22313a;
@@ -268,7 +308,7 @@ button.small-control {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 8px;
+  margin-top: 2px;
 }
 
 .dataset-select {
@@ -282,7 +322,7 @@ button.small-control {
 
 .dataset-select input {
   min-width: 0;
-  height: 38px;
+  height: 32px;
   padding: 6px 8px;
   border: 1px solid #3b4d57;
   border-radius: 6px;
@@ -291,7 +331,8 @@ button.small-control {
 }
 
 .datasets {
-  max-height: 330px;
+  min-height: 70px;
+  max-height: none;
   overflow: auto;
   border: 1px solid var(--line);
   border-radius: 5px;
@@ -300,7 +341,7 @@ button.small-control {
 
 .dataset {
   width: 100%;
-  min-height: 52px;
+  min-height: 42px;
   border: 0;
   border-bottom: 1px solid #26343c;
   border-radius: 0;
@@ -341,10 +382,12 @@ button.small-control {
 .session-details {
   display: grid;
   grid-template-columns: max-content 1fr;
-  gap: 6px 12px;
+  flex: 0 1 112px;
+  gap: 4px 10px;
   margin: 0;
-  padding: 14px 12px;
-  font-size: 11px;
+  padding: 8px;
+  overflow: auto;
+  font-size: 10px;
 }
 
 .session-details dt {
@@ -358,9 +401,10 @@ button.small-control {
 }
 
 .operator-message {
-  min-height: 76px;
-  margin: 0 12px 12px;
-  padding: 10px;
+  flex: 0 0 54px;
+  min-height: 54px;
+  margin: 0 8px 8px;
+  padding: 7px;
   overflow: auto;
   border: 1px solid var(--line);
   border-radius: 5px;
@@ -372,15 +416,13 @@ button.small-control {
 }
 
 .footer {
-  position: sticky;
   z-index: 10;
-  bottom: 0;
-  min-height: 54px;
-  padding: 8px 14px;
+  min-height: 42px;
+  padding: 5px 10px;
   border-top: 1px solid var(--line);
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 14px;
   background: #0b1115f2;
   backdrop-filter: blur(8px);
   font-size: 10px;
@@ -409,7 +451,15 @@ button.small-control {
   display: none !important;
 }
 
-@media (max-width: 1050px) {
+@media (max-width: 780px) {
+  body {
+    height: auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow: auto;
+    display: block;
+  }
+
   .dashboard {
     grid-template-columns: 1fr 1fr;
     grid-template-rows: 330px 480px auto;
@@ -425,7 +475,7 @@ button.small-control {
   }
 }
 
-@media (max-width: 680px) {
+@media (max-width: 580px) {
   .topbar,
   .footer {
     align-items: flex-start;

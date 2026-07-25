@@ -4,6 +4,7 @@
   var connection = document.getElementById("connection-pill");
   var controller = document.getElementById("controller-pill");
   var message = document.getElementById("operator-message");
+  var alert = document.getElementById("global-alert");
 
   if (connection) connection.textContent = "APP LOADING";
   if (controller) controller.textContent = "CONTROL STARTING";
@@ -29,6 +30,10 @@
         "Browser application failed before connecting: " + detail +
         "\nTry the same URL in current Chrome, Firefox, or Safari and reload.";
       message.style.color = "var(--red)";
+    }
+    if (alert) {
+      alert.textContent = "Browser application failed before connecting: " + detail;
+      alert.classList.remove("hidden");
     }
   }
 

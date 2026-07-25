@@ -24,7 +24,7 @@ const elements = Object.fromEntries(
     "replay-toggle", "replay-next", "replay-slower", "replay-faster",
     "replay-loop", "replay-stop", "datasets", "datasets-refresh",
     "dataset-index", "dataset-open",
-    "session-details", "operator-message",
+    "session-details", "operator-message", "global-alert",
   ].map((id) => [id, document.getElementById(id)]),
 );
 
@@ -55,6 +55,10 @@ let cloudQueued = null;
 function setMessage(message, error = false) {
   elements["operator-message"].textContent = message;
   elements["operator-message"].style.color = error ? "var(--red)" : "var(--amber)";
+  if (error) {
+    elements["global-alert"].textContent = message;
+    elements["global-alert"].classList.remove("hidden");
+  }
 }
 
 function humanBytes(value) {
@@ -189,7 +193,8 @@ function disableStream(name, message) {
   elements[`${name}-health`].textContent = "UNAVAILABLE";
   const empty = elements[`${name}-empty`];
   if (empty) {
-    empty.textContent = `${name.toUpperCase()} UNAVAILABLE`;
+    empty.textContent = message;
+    empty.classList.add("error");
     empty.classList.remove("hidden");
   }
   setMessage(message, true);
@@ -271,6 +276,8 @@ function initializeDepth() {
 }
 
 async function initializeCloud() {
+  elements["cloud-health"].textContent = "starting 3D renderer";
+  elements["cloud-empty"].textContent = "STARTING 3D RENDERER…";
   const [THREE, controlsModule] = await Promise.all([
     import("./vendor/three.module.min.js"),
     import("./vendor/OrbitControls.js"),
@@ -411,6 +418,7 @@ async function initializeCloud() {
     requestAnimationFrame(animate);
   }
   requestAnimationFrame(animate);
+  elements["cloud-health"].textContent = "renderer ready";
   connectStream("cloud", submitCloud);
 }
 
