@@ -37,8 +37,17 @@
     }
   }
 
+  function isBenignResizeObserverWarning(value) {
+    return /ResizeObserver loop (completed with undelivered notifications|limit exceeded)/i
+      .test(describe(value));
+  }
+
   window.__zedShowBootFailure = showFailure;
   window.addEventListener("error", function (event) {
+    if (isBenignResizeObserverWarning(event.error || event.message)) {
+      event.preventDefault();
+      return;
+    }
     showFailure(event.error || event.message);
   });
   window.addEventListener("unhandledrejection", function (event) {

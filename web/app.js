@@ -473,10 +473,18 @@ async function initializeCloud() {
     disableStream("cloud", `Point-cloud decoder failed: ${event.message || "worker error"}`);
   };
 
+  let resizeFrame = 0;
+  let renderedWidth = 0;
+  let renderedHeight = 0;
+
   function resizeCloud() {
+    resizeFrame = 0;
     const area = elements["cloud-view"];
     const width = Math.max(1, area.clientWidth);
     const height = Math.max(1, area.clientHeight);
+    if (width === renderedWidth && height === renderedHeight) return;
+    renderedWidth = width;
+    renderedHeight = height;
     // Keep the Retina-resolution drawing buffer while sizing the DOM canvas
     // to the pane's logical CSS dimensions. Without this, a 2x DPR canvas is
     // clipped to its upper-left quarter and the view center appears bottom-right.
@@ -484,10 +492,15 @@ async function initializeCloud() {
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
   }
+
+  function scheduleCloudResize() {
+    if (!resizeFrame) resizeFrame = requestAnimationFrame(resizeCloud);
+  }
+
   if (typeof ResizeObserver === "function") {
-    new ResizeObserver(resizeCloud).observe(elements["cloud-view"]);
+    new ResizeObserver(scheduleCloudResize).observe(elements["cloud-view"]);
   } else {
-    window.addEventListener("resize", resizeCloud);
+    window.addEventListener("resize", scheduleCloudResize);
   }
   resizeCloud();
 
