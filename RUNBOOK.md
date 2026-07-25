@@ -1,12 +1,13 @@
 # RUNBOOK - Current operational ZED X One field protocol
 
 This is the authoritative operating and rollback procedure for the calibrated
-dual ZED X One GS rig as it works today. Follow it when the Jetson has no
-monitor and an Ubuntu 22.04 workstation provides the RViz view and controls.
+dual ZED X One GS rig as it works today. The proven Ubuntu/RViz path remains
+unchanged. An additive native browser release candidate is documented below
+for macOS/Linux field acceptance.
 
-The planned browser viewer is additive. Until its acceptance gates pass, it
-must not replace, remove, or silently change any command or contract in this
-runbook.
+The browser viewer does not replace, remove, or silently change any existing
+command or capture contract. Use the RViz path whenever browser acceptance or
+workstation compatibility is uncertain.
 
 ## Fixed rig contract
 
@@ -108,6 +109,50 @@ explicit fallback only after confirming that it resolves to this Jetson:
 ```
 
 ## Normal live view and recording
+
+### Additive native-browser release candidate
+
+Build once on the Jetson without opening cameras:
+
+```bash
+cd /home/dusty/workspace/terraforming_mars/zed-x-one-rig
+./scripts/verify_web_assets.sh
+./scripts/build_web_gateway.sh
+```
+
+Then run this from the repository on a current macOS or Linux workstation:
+
+```bash
+./scripts/zed_web_console.sh \
+  --jetson zed-jetson \
+  --remote-root /home/dusty/workspace/terraforming_mars/zed-x-one-rig
+```
+
+Outdoor and replay:
+
+```bash
+./scripts/zed_web_console.sh --jetson zed-jetson \
+  --remote-root /home/dusty/workspace/terraforming_mars/zed-x-one-rig --outdoor
+
+./scripts/zed_web_console.sh --jetson zed-jetson \
+  --remote-root /home/dusty/workspace/terraforming_mars/zed-x-one-rig --replay
+```
+
+The browser receives the same JPEG, compressed-depth, and Draco previews
+through a loopback-only SSH tunnel. The Jetson still performs NEURAL depth and
+lossless SVO2 recording. Its separate `cyclonedds-loopback.xml` profile keeps
+DDS discovery and payloads on the Jetson; only SSH-tunneled browser traffic
+crosses the LAN. The browser starts view-only and shows prominent recording
+duration, bytes, and measured write rate.
+
+`Ctrl+C`, browser closure, laptop sleep, Wi-Fi loss, and tunnel loss leave the
+Jetson session and recording unchanged. Re-run the command to attach. Use the
+browser safe-stop control only when the rig session should actually end.
+
+Complete browser controls, replay selection, offline requirements,
+troubleshooting, security, and rollback are in
+`docs/WEB_VIEWER.md`. Until field acceptance is signed off, the RViz command
+immediately below remains the proven default.
 
 Run this from the repository on the Ubuntu viewing workstation:
 
@@ -374,6 +419,7 @@ Browser-viewer development may add new files and optional dependencies, but it
 must leave this surface operational. Detailed background and troubleshooting
 remain in:
 
+- `docs/WEB_VIEWER.md`;
 - `docs/FIELD_CONSOLE.md`;
 - `docs/REMOTE_REPLAY.md`;
 - `docs/ROS2_REMOTE_VIEWING.md`;

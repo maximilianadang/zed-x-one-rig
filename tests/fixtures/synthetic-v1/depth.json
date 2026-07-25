@@ -1,0 +1,7 @@
+{
+  "bytes": 4160,
+  "format": "32FC1; compressedDepth",
+  "frame_id": "zed_left_camera_frame_optical",
+  "stamp_nsec": 444069553,
+  "stamp_sec": 1785014361
+}

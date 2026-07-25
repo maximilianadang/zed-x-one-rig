@@ -18,9 +18,9 @@ root at `RUNBOOK.md`.
 | Section | Status | Gate |
 |---|---|---|
 | READ | Complete | Current repository, ROS topics, RViz configuration, control/replay helpers, installed transports, and receiver packaging were inspected. |
-| INFER | Proposed | Requires explicit user approval before architecture or interface decisions become implementation work. |
-| DERISK | Proposed | Requires explicit user approval before installing packages, adding services, opening cameras, or running live tests. |
-| Implementation | Not started | No browser, gateway, dependency, service, camera, or network change is authorized by this planning document alone. |
+| INFER | Approved | User approved this bounded line of work on 2026-07-25. |
+| DERISK | Approved | The documented containment, rollback, and acceptance gates remain mandatory. |
+| Implementation | Release candidate built | Jetson/replay tests pass; actual MacBook, live-camera, recording, two-network, and comparative resource acceptance remain open. |
 
 ## Desired outcome
 
@@ -386,14 +386,18 @@ root at `RUNBOOK.md`.
   at final acceptance. Do not document a proposed browser path as operational
   until it has passed its gates; do not delete proven commands when adding it.
 
-## Decisions awaiting approval
+## Approved decisions
 
 - Browser delivery replaces, rather than accompanies, RViz in normal use.
 - Initial browser quality and frequency exactly match the current field profile.
 - ROS and DDS remain Jetson-local; the Mac receives binary browser streams
   through an SSH tunnel.
-- First transport implementation uses loopback-only ROSBridge with binary
-  CBOR/CBOR-RAW, behind an adapter and subject to resource measurements.
+- The transport remains behind an adapter and carries binary payloads only.
+  The implementation audit found ROSBridge, Tornado, and its WebSocket runtime
+  absent, while the already-installed ROS 2 C++ message stack and Boost.Beast
+  provide the required transport without a new system package or Python
+  runtime. The approved fallback is therefore the narrow C++ `rclcpp` gateway,
+  subject to the same loopback, queue, protocol, and resource gates.
 - Browser runtime is static/offline; no Node, CDN, cloud, account, VNC, ZED SDK,
   ROS, or CUDA is required on the Mac.
 - Three.js plus vendored Draco WASM renders the colored cloud; depth decoding
@@ -409,10 +413,11 @@ root at `RUNBOOK.md`.
 
 ## Ordered tasks
 
-- [ ] **APPROVAL GATE - accept READ / INFER / DERISK and pending decisions.**
+- [x] **APPROVAL GATE - accept READ / INFER / DERISK and pending decisions.**
   - Resolve rejected assumptions in this document before implementation.
   - User approval authorizes this bounded line of work, not unrelated camera,
     driver, network-router, cloud, or capture-quality changes.
+  - Approved by the user on 2026-07-25.
 
 - [ ] **T0 - freeze browser, fixture, protocol, and baseline contracts.**
   - Rehearse the root `RUNBOOK.md` current live, recording, reconnect, replay,
@@ -520,6 +525,74 @@ root at `RUNBOOK.md`.
     and rollback.
   - **Gate:** another operator can perform the complete browser workflow from
     the written offline procedure alone.
+
+## Implementation evidence - 2026-07-25
+
+Completed and retained in the repository:
+
+- The existing `zed_field_*`, `zed_replay_*`, direct recorder, RViz profile,
+  `field.yaml`, `outdoor.yaml`, calibration, and camera configuration have no
+  implementation diff. The browser path is additive.
+- A deterministic, non-sensitive 96x60 RGB/depth/cloud fixture was produced
+  through the installed ROS compressed-depth and Draco encoders. Browser depth
+  samples match the stored source within the existing 2 cm transport
+  quantization allowance; Draco point count, XYZ bounds/samples, and packed
+  color bytes match.
+- The depth display follows the installed RViz Humble `ImageDisplay` path:
+  finite 32-bit metric depth is normalized to 8-bit grayscale using the median
+  of the last five frame minima/maxima. Invalid depth is black.
+- A synchronized frame from the rig's short finalized SVO2 was also compared
+  against the installed ROS decoders: 960x600 RGB/depth, 29,637 valid depth
+  pixels, and 1,404 cloud points. Its identifiable RGB was deliberately
+  deleted and was never placed in Git.
+- The browser decoder stress test completed 300 repeated depth/cloud cycles
+  with a 9.8-20.5 MiB process RSS delta. That test found and corrected improper
+  destruction of Draco-owned attribute/status wrappers before deployment.
+- The native C++ gateway builds entirely from installed `rclcpp`,
+  `sensor_msgs`, `point_cloud_interfaces`, and Boost.Beast. It binds only to
+  `127.0.0.1`, serves an allowlisted static tree, requires a 256-bit bearer
+  token, checks loopback browser origins and protocol version, and exposes no
+  arbitrary topic, ROS service, path, or command.
+- Browser live/replay sessions and the gateway use
+  `cyclonedds-loopback.xml`, explicitly selecting `lo` and disabling
+  multicast. Existing RViz commands retain the prior LAN DDS profile.
+- RGB, depth, and cloud use independent binary WebSockets and activate their
+  ROS subscriptions only while an authenticated stream is connected. Repeated
+  end-to-end tests showed all three subscriptions deactivate after disconnect
+  and the gateway exits cleanly.
+- A single renewable 30-second controller lease prevents competing browser
+  mutations. A second controller receives HTTP 423 while remaining able to
+  view authenticated data and status.
+- Deployed replay acceptance passed from the actual repository path using the
+  original compressed payloads: 960x600 metric depth and a ZED Draco cloud.
+  Authentication, invalid origin, dataset reopen, gateway survival across a
+  replay-node restart, play/pause, forward-one-frame, speed, state
+  reconciliation, and clean stop all passed.
+- One sampled idle/disconnected gateway used 15,676 KiB RSS and 0.4% CPU. This
+  is evidence only, not the required RViz-versus-browser field resource
+  comparison.
+- Offline Three.js/Draco archives, runtime assets, checksums, licenses, static
+  tests, protocol tests, codec tests, build scripts, the macOS/Linux launcher,
+  and operator documentation are retained locally. The deployed
+  `verify_ros2_setup.sh` completed with 0 failures and 0 warnings.
+
+Acceptance deliberately still pending:
+
+- Visual/interaction testing in Safari and one Chromium browser on the actual
+  MacBook, including model, architecture, macOS/browser versions, memory,
+  background-tab, and sleep/wake behavior.
+- A full live-camera test of standard/outdoor view, lossless record,
+  disconnect/reconnect, finalization/validation, safe stop, and camera release.
+- AsteraMesh and Mars tests with internet unavailable, including SSH tunnel
+  recovery and the absence of LAN DDS dependence.
+- RViz-versus-browser CPU/GPU/RAM/power/temperature/network/latency and
+  simultaneous-recording measurements at identical rates.
+- Side-by-side visual sign-off for RGB, depth colors, point size/color, grid,
+  axes, initial pose, orbit/pan/zoom, and responsive layout.
+
+Until those field gates pass, `RUNBOOK.md` continues to identify the existing
+Ubuntu/RViz workflow as the proven default and browser operation as the
+additive release candidate.
 
 ## Acceptance summary
 

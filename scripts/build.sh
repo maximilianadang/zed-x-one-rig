@@ -13,8 +13,12 @@ cmake -S "$ROOT/vendor/zed-opencv-calibration" \
   -B "$ROOT/build/calibration" -DCMAKE_BUILD_TYPE=Release
 cmake --build "$ROOT/build/calibration" --parallel "$JOBS"
 
+echo "Building native browser gateway..."
+ZED_WEB_BUILD_JOBS="$JOBS" "$ROOT/scripts/build_web_gateway.sh"
+
 echo
 echo "Build complete."
 echo "Recorder: $ROOT/build/recorder/zed_virtual_stereo_recorder"
 echo "Calibration: $ROOT/build/calibration/stereo_calibration/zed_stereo_calibration"
 echo "NEURAL viewer: $ROOT/build/calibration/stereo_reprojection_viewer/zed_reprojection_viewer"
+echo "Browser gateway: $ROOT/build/web_gateway/zed_web_gateway"

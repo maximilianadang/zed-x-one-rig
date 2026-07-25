@@ -13,6 +13,7 @@
 *.png
 *.jpg
 *.jpeg
+!tests/fixtures/**/*.jpg
 !vendor/zed-opencv-calibration/images/*.png
 ZED_Diagnostic_Results*.json
 core

@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>zed_web_gateway</name>
+  <version>0.1.0</version>
+  <description>Loopback-only binary browser gateway for the calibrated ZED X One rig.</description>
+  <maintainer email="field-rig@example.invalid">ZED field rig operator</maintainer>
+  <license>Proprietary</license>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <depend>rclcpp</depend>
+  <depend>sensor_msgs</depend>
+  <depend>point_cloud_interfaces</depend>
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

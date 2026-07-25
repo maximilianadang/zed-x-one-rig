@@ -96,6 +96,36 @@ The default target can also be supplied directly when mDNS is unambiguous:
 See [docs/FIELD_CONSOLE.md](docs/FIELD_CONSOLE.md) for one-time SSH setup,
 offline operation, recovery semantics, and network checks.
 
+## Native browser view on macOS or Linux
+
+The additive browser viewer preserves the same 5/5/2 Hz compressed preview and
+15 FPS lossless SVO2 contract without requiring Ubuntu, ROS, RViz, ZED SDK,
+CUDA, VNC, Node, a cloud account, or internet on the viewing computer:
+
+```bash
+./scripts/zed_web_console.sh \
+  --jetson zed-jetson \
+  --remote-root /home/dusty/workspace/terraforming_mars/zed-x-one-rig
+```
+
+Use `--outdoor` for the approved exposure profile or `--replay` for the
+finalized-SVO2 browser. The Jetson gateway binds only to loopback and is reached
+through SSH. It forwards the existing JPEG, compressed-depth, and Draco bytes;
+decode and rendering occur in the browser. A browser-specific Cyclone DDS
+profile also confines the ROS graph to Jetson loopback, so no DDS discovery or
+payload traffic is required on the field LAN.
+
+Build it once on the Jetson:
+
+```bash
+./scripts/verify_web_assets.sh
+./scripts/build_web_gateway.sh
+```
+
+See [docs/WEB_VIEWER.md](docs/WEB_VIEWER.md) for workstation setup, controls,
+disconnect behavior, offline assets, replay, troubleshooting, and rollback.
+The existing RViz protocol remains unchanged in [RUNBOOK.md](RUNBOOK.md).
+
 ## Direct synchronized recording fallback
 
 When no remote view is needed, the proven direct fallback is lossless:
@@ -170,9 +200,12 @@ docs/          Setup, field operation, recorder, remote viewing, calibration, an
 launchers/     Desktop launcher templates installed by scripts/install.sh
 prebuilt/      AArch64 binaries built on the known-good Jetson software stack
 recorder/      Source for the custom synchronized virtual-stereo SVO2 recorder
+gateway/       Source for the loopback-only native browser gateway
 scripts/       Build, installation, verification, recording, and stream commands
+tests/         Synthetic codec fixtures and browser/protocol tests
 tools/         Offline SVO depth-analysis and overlay-video tools
 vendor/        Exact upstream calibration source and pinned ROS 2 assets
+web/           Static offline field interface and browser-side decoders
 ```
 
 Recordings, generated images/videos, calibration capture frames, diagnostic

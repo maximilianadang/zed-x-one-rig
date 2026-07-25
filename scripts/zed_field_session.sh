@@ -13,6 +13,7 @@ MIN_FREE_BYTES="${ZED_FIELD_MIN_FREE_BYTES_OVERRIDE:-$ZED_FIELD_MIN_FREE_BYTES}"
 LOSSLESS_BYTES_PER_SEC="${ZED_FIELD_LOSSLESS_BYTES_PER_SEC_OVERRIDE:-$ZED_FIELD_LOSSLESS_BYTES_PER_SEC}"
 START_TIMEOUT="${ZED_FIELD_START_TIMEOUT_OVERRIDE:-$ZED_FIELD_START_TIMEOUT}"
 FINALIZE_TIMEOUT="${ZED_FIELD_FINALIZE_TIMEOUT_OVERRIDE:-$ZED_FIELD_FINALIZE_TIMEOUT}"
+DDS_PROFILE_DEFAULT="$ROOT/config/ros2/cyclonedds-jetson.xml"
 RUNTIME_BASE="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 STATE_DIR="$RUNTIME_BASE/zed-field-console"
 COMMAND_LOCK="$STATE_DIR/command.lock"
@@ -34,7 +35,8 @@ Copy/paste commands on the Jetson:
   $ROOT/scripts/zed_field_session.sh stop
 
 Commands:
-  start [--profile PATH]  Start or attach to the transient live ROS session
+  start [--profile PATH] [--dds-profile PATH]
+                          Start or attach to the transient live ROS session
   status [--machine] [--fast]
                           Show unit, ROS, recording, file, and storage state
   record-start            Start the proven lossless SVO2 mode
@@ -77,6 +79,11 @@ unit_active() {
 }
 
 source_ros() {
+  local session_dds
+  session_dds="$(state_value session.dds_profile)"
+  if [[ -n "$session_dds" ]]; then
+    export CYCLONEDDS_URI="file://$session_dds"
+  fi
   zed_ros_source_environment
 }
 
@@ -167,7 +174,7 @@ camera_pair_available() {
 }
 
 print_status() {
-  local unit_state node_state state path final started preset bytes free diag last failed profile mode usable minutes
+  local unit_state node_state state path final started preset bytes free diag last failed profile dds_profile mode usable minutes
   ensure_runtime
   if unit_active; then unit_state=active; else unit_state=inactive; fi
 
@@ -178,6 +185,8 @@ print_status() {
   last="$(state_value last.path)"
   failed="$(state_value last.failed_path)"
   profile="$(state_value session.profile)"
+  dds_profile="$(state_value session.dds_profile)"
+  [[ -n "$dds_profile" ]] || dds_profile="$DDS_PROFILE_DEFAULT"
   case "${profile##*/}" in
     field.yaml) mode=STANDARD ;;
     outdoor.yaml) mode=OUTDOOR ;;
@@ -238,6 +247,7 @@ print_status() {
     printf 'FILE_BYTES=%s\nFREE_BYTES=%s\nLAST_PATH=%s\nFAILED_PATH=%s\n' \
       "$bytes" "$free" "$last" "$failed"
     printf 'PROFILE=%s\nMODE=%s\nEST_LOSSLESS_MINUTES=%s\n' "$profile" "$mode" "$minutes"
+    printf 'DDS_PROFILE=%s\n' "$dds_profile"
     return
   fi
 
@@ -250,6 +260,7 @@ print_status() {
   echo "  Free space:  $(human_bytes "$free")"
   echo "  Est. record: ${minutes} lossless minutes above reserve"
   [[ -n "$profile" ]] && echo "  Profile:     $profile"
+  [[ -n "$profile" ]] && echo "  DDS profile: $dds_profile"
   if [[ -n "$path" ]]; then
     echo "  Active file: $path"
     echo "  File size:   $(human_bytes "$bytes")"
@@ -262,10 +273,13 @@ print_status() {
 }
 
 start_session() {
-  local profile="$ZED_ROS_PROFILE" active_profile
+  local profile="$ZED_ROS_PROFILE"
+  local dds_profile="${ZED_SESSION_DDS_PROFILE_OVERRIDE:-$DDS_PROFILE_DEFAULT}"
+  local active_profile active_dds
   while (($#)); do
     case "$1" in
       --profile) profile="${2:-}"; shift ;;
+      --dds-profile) dds_profile="${2:-}"; shift ;;
       --machine) MACHINE=true ;;
       *) die "Unknown start option: $1" ;;
     esac
@@ -274,13 +288,18 @@ start_session() {
 
   lock_commands
   profile="$(realpath -e "$profile")" || die "Unreadable ROS profile: $profile"
+  dds_profile="$(realpath -e "$dds_profile")" || die "Unreadable DDS profile: $dds_profile"
   if unit_active; then
     active_profile="$(state_value session.profile)"
+    active_dds="$(state_value session.dds_profile)"
+    [[ -n "$active_dds" ]] || active_dds="$DDS_PROFILE_DEFAULT"
     if [[ -z "$active_profile" ]]; then
       die "The named unit is active but its profile state is missing; inspect: $0 logs"
     fi
     [[ "$active_profile" == "$profile" ]] ||
       die "Active profile is $active_profile, not requested $profile"
+    [[ "$active_dds" == "$dds_profile" ]] ||
+      die "Active DDS profile is $active_dds, not requested $dds_profile"
     echo "Transient live session is already active; attaching."
     print_status
     return
@@ -293,6 +312,7 @@ start_session() {
   if ! zed_ros_user_manager_persistent; then
     die "No persistent user manager: run once with a local password: sudo loginctl enable-linger $(id -un)"
   fi
+  export CYCLONEDDS_URI="file://$dds_profile"
   source_ros
   echo "Resetting ROS 2 CLI discovery for the current network..."
   reset_ros_cli_daemon
@@ -306,7 +326,7 @@ start_session() {
     --property=TimeoutStopSec="${FINALIZE_TIMEOUT}s" \
     --property=SuccessExitStatus=SIGINT \
     --setenv="ZED_ROS_PROFILE=$profile" \
-    --setenv="CYCLONEDDS_URI=file://$ROOT/config/ros2/cyclonedds-jetson.xml" \
+    --setenv="CYCLONEDDS_URI=file://$dds_profile" \
     "$ROOT/scripts/start_ros2_virtual_stereo.sh" >/dev/null
 
   echo "Waiting up to ${START_TIMEOUT}s for direct ZED service discovery..."
@@ -317,6 +337,7 @@ start_session() {
     return 1
   fi
   write_state session.profile "$profile"
+  write_state session.dds_profile "$dds_profile"
   write_state session.started "$(date +%s)"
   echo "Live session is ready in view-only mode."
   print_status
@@ -508,7 +529,8 @@ stop_session() {
     elapsed=$((elapsed + 1))
   done
   camera_pair_available || die "Camera pair did not return to AVAILABLE"
-  rm -f -- "$STATE_DIR/session.profile" "$STATE_DIR/session.started"
+  rm -f -- "$STATE_DIR/session.profile" "$STATE_DIR/session.dds_profile" \
+    "$STATE_DIR/session.started"
   echo "Both physical cameras are AVAILABLE."
 }
 

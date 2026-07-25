@@ -1,0 +1,39 @@
+{
+  "bytes": 3416,
+  "fields": [
+    {
+      "count": 1,
+      "datatype": 7,
+      "name": "x",
+      "offset": 0
+    },
+    {
+      "count": 1,
+      "datatype": 7,
+      "name": "y",
+      "offset": 4
+    },
+    {
+      "count": 1,
+      "datatype": 7,
+      "name": "z",
+      "offset": 8
+    },
+    {
+      "count": 1,
+      "datatype": 7,
+      "name": "rgb",
+      "offset": 12
+    }
+  ],
+  "format": "draco",
+  "frame_id": "zed_left_camera_frame",
+  "height": 1,
+  "is_bigendian": false,
+  "is_dense": true,
+  "point_step": 16,
+  "row_step": 4096,
+  "stamp_nsec": 444069553,
+  "stamp_sec": 1785014361,
+  "width": 256
+}

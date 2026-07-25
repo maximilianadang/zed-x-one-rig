@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ZED X One Field View</title>
+    <link rel="stylesheet" href="/style.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">ZED X ONE RIG</p>
+        <h1>Field view</h1>
+      </div>
+      <div class="headline-state">
+        <span id="connection-pill" class="pill warning">CONNECTING</span>
+        <span id="controller-pill" class="pill warning">CONTROL CHECK</span>
+        <span id="mode-pill" class="pill">VIEW ONLY</span>
+        <span id="profile-pill" class="pill quiet">PROFILE —</span>
+      </div>
+    </header>
+
+    <div id="recording-banner" class="recording-banner hidden" role="status">
+      <span class="record-dot" aria-hidden="true"></span>
+      <strong>RECORDING LOSSLESS</strong>
+      <span id="record-elapsed">00:00</span>
+      <span id="record-bytes">0 B</span>
+      <span id="record-rate">0 MB/s</span>
+    </div>
+
+    <main class="dashboard">
+      <section class="panel image-panel">
+        <div class="panel-title">
+          <h2>Rectified RGB</h2>
+          <span id="rgb-health">waiting</span>
+        </div>
+        <div class="viewport image-viewport">
+          <img id="rgb-view" alt="Live rectified RGB stream">
+          <div id="rgb-empty" class="empty-state">NO IMAGE</div>
+        </div>
+      </section>
+
+      <section class="panel image-panel">
+        <div class="panel-title">
+          <h2>Registered depth</h2>
+          <span id="depth-health">waiting</span>
+        </div>
+        <div class="viewport image-viewport">
+          <canvas id="depth-view"></canvas>
+          <div id="depth-empty" class="empty-state">NO IMAGE</div>
+          <div id="depth-range" class="range-label">—</div>
+        </div>
+      </section>
+
+      <section class="panel cloud-panel">
+        <div class="panel-title">
+          <h2>Colored point cloud</h2>
+          <span id="cloud-health">waiting</span>
+          <button id="reset-view" class="small-control">Reset view</button>
+        </div>
+        <div id="cloud-view" class="viewport cloud-viewport">
+          <div id="cloud-empty" class="empty-state">NO POINT CLOUD</div>
+        </div>
+      </section>
+
+      <aside class="panel controls-panel">
+        <div class="panel-title">
+          <h2>Rig controls</h2>
+          <span id="control-state">checking</span>
+        </div>
+
+        <div id="live-controls" class="control-group">
+          <button id="record-start" class="primary" data-mutation>Start lossless recording</button>
+          <button id="record-stop" data-mutation>Stop &amp; validate recording</button>
+          <button id="live-stop" class="danger" data-mutation>Safely stop rig session</button>
+        </div>
+
+        <div id="replay-controls" class="control-group hidden">
+          <div class="replay-row">
+            <button id="replay-toggle" class="primary" data-mutation>Play / pause</button>
+            <button id="replay-next" data-mutation>Next frame</button>
+          </div>
+          <div class="replay-row">
+            <button id="replay-slower" data-mutation>Slower</button>
+            <button id="replay-faster" data-mutation>Faster</button>
+            <label><input id="replay-loop" type="checkbox"> Loop next dataset</label>
+          </div>
+          <div class="dataset-heading">
+            <strong>Finalized SVO2 datasets</strong>
+            <button id="datasets-refresh" class="small-control">Refresh</button>
+          </div>
+          <div class="dataset-select">
+            <label for="dataset-index">Dataset #</label>
+            <input id="dataset-index" type="number" min="1" step="1" inputmode="numeric">
+            <button id="dataset-open" data-mutation>Open selected</button>
+          </div>
+          <div id="datasets" class="datasets" role="listbox" tabindex="0"></div>
+          <p class="hint">Enter a number or use ↑/↓ and Enter · Space play/pause · . next frame</p>
+          <button id="replay-stop" class="danger" data-mutation>Stop replay session</button>
+        </div>
+
+        <dl id="session-details" class="session-details"></dl>
+        <pre id="operator-message" class="operator-message" aria-live="polite"></pre>
+      </aside>
+    </main>
+
+    <footer class="footer">
+      <div class="stream-stat"><strong>RGB</strong><span id="rgb-stat">0 Hz · 0 drops</span></div>
+      <div class="stream-stat"><strong>Depth</strong><span id="depth-stat">0 Hz · 0 drops</span></div>
+      <div class="stream-stat"><strong>Cloud</strong><span id="cloud-stat">0 Hz · 0 drops</span></div>
+      <div class="footer-note">1920×1200 @ 15 FPS lossless capture · 960×600 @ 5 Hz preview · cloud @ 2 Hz</div>
+    </footer>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,141 @@
+{
+  "encoding": "32FC1",
+  "frame_id": "zed_left_camera_frame_optical",
+  "height": 60,
+  "is_bigendian": false,
+  "maximum_metres": 9.295000076293945,
+  "median_metres": 5.02526330947876,
+  "minimum_metres": 0.7549999952316284,
+  "samples": [
+    {
+      "column": 0,
+      "metres": null,
+      "row": 0
+    },
+    {
+      "column": 24,
+      "metres": 2.8342106342315674,
+      "row": 0
+    },
+    {
+      "column": 48,
+      "metres": 4.918421268463135,
+      "row": 0
+    },
+    {
+      "column": 72,
+      "metres": 7.002631664276123,
+      "row": 0
+    },
+    {
+      "column": 95,
+      "metres": 9.0,
+      "row": 0
+    },
+    {
+      "column": 0,
+      "metres": 0.824999988079071,
+      "row": 15
+    },
+    {
+      "column": 24,
+      "metres": 2.909210443496704,
+      "row": 15
+    },
+    {
+      "column": 48,
+      "metres": 4.9934210777282715,
+      "row": 15
+    },
+    {
+      "column": 72,
+      "metres": 7.07763147354126,
+      "row": 15
+    },
+    {
+      "column": 95,
+      "metres": 9.074999809265137,
+      "row": 15
+    },
+    {
+      "column": 0,
+      "metres": 0.8999999761581421,
+      "row": 30
+    },
+    {
+      "column": 24,
+      "metres": 2.98421049118042,
+      "row": 30
+    },
+    {
+      "column": 48,
+      "metres": 5.068420886993408,
+      "row": 30
+    },
+    {
+      "column": 72,
+      "metres": null,
+      "row": 30
+    },
+    {
+      "column": 95,
+      "metres": 9.149999618530273,
+      "row": 30
+    },
+    {
+      "column": 0,
+      "metres": 0.9750000238418579,
+      "row": 45
+    },
+    {
+      "column": 24,
+      "metres": 3.0592105388641357,
+      "row": 45
+    },
+    {
+      "column": 48,
+      "metres": 5.143421173095703,
+      "row": 45
+    },
+    {
+      "column": 72,
+      "metres": 7.227631568908691,
+      "row": 45
+    },
+    {
+      "column": 95,
+      "metres": 9.225000381469727,
+      "row": 45
+    },
+    {
+      "column": 0,
+      "metres": 1.0449999570846558,
+      "row": 59
+    },
+    {
+      "column": 24,
+      "metres": 3.1292104721069336,
+      "row": 59
+    },
+    {
+      "column": 48,
+      "metres": 5.213420867919922,
+      "row": 59
+    },
+    {
+      "column": 72,
+      "metres": 7.297631740570068,
+      "row": 59
+    },
+    {
+      "column": 95,
+      "metres": 9.295000076293945,
+      "row": 59
+    }
+  ],
+  "stamp_nsec": 444069553,
+  "stamp_sec": 1785014361,
+  "step": 384,
+  "valid_pixels": 5424,
+  "width": 96
+}

@@ -1,0 +1,9 @@
+{
+  "bytes": 4051,
+  "format": "bgr8; jpeg compressed bgr8",
+  "frame_id": "zed_left_camera_frame_optical",
+  "height": 60,
+  "stamp_nsec": 444069553,
+  "stamp_sec": 1785014361,
+  "width": 96
+}

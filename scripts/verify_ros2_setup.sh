@@ -46,6 +46,17 @@ if [[ -r "$ZED_ROS_WORKSPACE/install/local_setup.bash" ]]; then pass "wrapper wo
 if zed_ros_check_calibration; then pass "virtual calibration checksum"; else failures=$((failures + 1)); fi
 
 if ((failures == 0)); then
+  if $RUNTIME; then
+    runtime_base="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+    for runtime_dds_state in \
+      "$runtime_base/zed-field-console/session.dds_profile" \
+      "$runtime_base/zed-replay-console/session.dds_profile"; do
+      if [[ -r "$runtime_dds_state" ]]; then
+        export CYCLONEDDS_URI="file://$(head -n1 "$runtime_dds_state")"
+        break
+      fi
+    done
+  fi
   zed_ros_source_environment
   if [[ "$(ros2 pkg prefix zed_wrapper 2>/dev/null)" == "$ZED_ROS_WORKSPACE/install/zed_wrapper" ]]; then
     pass "pinned zed_wrapper resolves from rig workspace"
@@ -61,9 +72,22 @@ fi
 
 for script in start_ros2_virtual_stereo.sh play_svo_ros2.sh start_ros2_rviz.sh \
   zed_field_session.sh zed_field_console.sh zed_replay_session.sh \
-  run_svo_replay_session.sh zed_replay_console.sh; do
+  run_svo_replay_session.sh zed_replay_console.sh build_web_gateway.sh \
+  run_web_gateway.sh zed_web_session.sh zed_web_console.sh \
+  verify_web_assets.sh; do
   if [[ -x "$ROOT/scripts/$script" ]]; then pass "executable: scripts/$script"; else fail "not executable: scripts/$script"; fi
 done
+
+if "$ROOT/scripts/verify_web_assets.sh" >/dev/null 2>&1; then
+  pass "pinned offline browser assets"
+else
+  fail "browser asset checksum mismatch"
+fi
+if [[ -x "$ROOT/build/web_gateway/zed_web_gateway" ]]; then
+  pass "native browser gateway build"
+else
+  warn "browser gateway is not built; run: $ROOT/scripts/build_web_gateway.sh"
+fi
 
 if [[ -x "$ROOT/tools/zed_svo_status_monitor.py" && -x "$ROOT/tools/zed_replay_command.py" ]]; then
   pass "executable: replay monitor and command client"
@@ -96,6 +120,15 @@ if [[ -r "$jetson_dds" ]] &&
   pass "MTU-safe Jetson DDS sender profile"
 else
   fail "missing or unsafe Jetson DDS sender profile: $jetson_dds"
+fi
+
+loopback_dds="$ROOT/config/ros2/cyclonedds-loopback.xml"
+if [[ -r "$loopback_dds" ]] &&
+   grep -Fq '<NetworkInterface name="lo" multicast="false" />' "$loopback_dds" &&
+   grep -Fq '<AllowMulticast>false</AllowMulticast>' "$loopback_dds"; then
+  pass "browser DDS is isolated to Jetson loopback"
+else
+  fail "missing or unsafe browser loopback DDS profile: $loopback_dds"
 fi
 
 if zed_ros_user_manager_persistent; then

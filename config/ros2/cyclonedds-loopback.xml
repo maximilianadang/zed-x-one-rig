@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- Browser-viewer ROS graph. All DDS discovery and user data stay on the
+     Jetson loopback interface; the workstation receives only SSH-tunneled
+     HTTP/WebSocket traffic from the native gateway. -->
+<CycloneDDS xmlns="https://cdds.io/config">
+  <Domain id="any">
+    <General>
+      <Interfaces>
+        <NetworkInterface name="lo" multicast="false" />
+      </Interfaces>
+      <AllowMulticast>false</AllowMulticast>
+      <FragmentSize>1344B</FragmentSize>
+      <MaxMessageSize>1400B</MaxMessageSize>
+      <MaxRexmitMessageSize>1400B</MaxRexmitMessageSize>
+    </General>
+    <Discovery>
+      <ParticipantIndex>auto</ParticipantIndex>
+    </Discovery>
+  </Domain>
+</CycloneDDS>

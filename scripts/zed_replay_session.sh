@@ -10,6 +10,7 @@ source "$ROOT/scripts/ros2_common.sh"
 UNIT="${ZED_REPLAY_UNIT_OVERRIDE:-$ZED_REPLAY_UNIT}"
 OUTPUT_DIR="${ZED_FIELD_OUTPUT_DIR_OVERRIDE:-$ZED_FIELD_OUTPUT_DIR}"
 START_TIMEOUT="${ZED_FIELD_START_TIMEOUT_OVERRIDE:-$ZED_FIELD_START_TIMEOUT}"
+DDS_PROFILE_DEFAULT="$ROOT/config/ros2/cyclonedds-jetson.xml"
 RUNTIME_BASE="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 STATE_DIR="$RUNTIME_BASE/zed-replay-console"
 STATUS_FILE="$STATE_DIR/playback.status"
@@ -31,7 +32,7 @@ Most likely commands on the Jetson:
 Commands:
   list [--machine] [--limit N]           List finalized SVO2 files, newest first
   start [--latest|--index N|--svo PATH]  Start or attach; paused at frame zero
-        [--profile PATH] [--loop] [--rate 0.1-5.0]
+        [--profile PATH] [--dds-profile PATH] [--loop] [--rate 0.1-5.0]
   status [--machine]                     Show file, frame, time, rate, and state
   pause-toggle                            Toggle paused/playing
   pause | play                            Set an explicit playback state
@@ -84,6 +85,7 @@ write_state() {
 
 clear_session_state() {
   rm -f -- "$STATE_DIR/session.svo" "$STATE_DIR/session.profile" \
+    "$STATE_DIR/session.dds_profile" \
     "$STATE_DIR/session.frames" "$STATE_DIR/session.fps" \
     "$STATE_DIR/session.loop" "$STATE_DIR/session.rate" \
     "$STATE_DIR/session.started" "$STATUS_FILE" "$COMMAND_SOCKET"
@@ -204,10 +206,12 @@ ensure_paused() {
 }
 
 print_status() {
-  local unit state svo profile frames fps loop rate frame status loops updated bytes
+  local unit state svo profile dds_profile frames fps loop rate frame status loops updated bytes
   ensure_runtime
   svo="$(state_value session.svo)"
   profile="$(state_value session.profile)"
+  dds_profile="$(state_value session.dds_profile)"
+  [[ -n "$dds_profile" ]] || dds_profile="$DDS_PROFILE_DEFAULT"
   frames="$(state_value session.frames)"
   fps="$(state_value session.fps)"
   loop="$(state_value session.loop)"
@@ -236,8 +240,8 @@ print_status() {
   if $MACHINE; then
     printf 'STATE=%s\nUNIT=%s\nSVO=%s\nSVO_BYTES=%s\n' "$state" "$unit" "$svo" "$bytes"
     printf 'FRAME_ID=%s\nTOTAL_FRAMES=%s\nFPS=%s\nRATE=%s\n' "$frame" "$frames" "$fps" "$rate"
-    printf 'LOOP=%s\nLOOP_COUNT=%s\nPROFILE=%s\nUPDATED_NS=%s\n' \
-      "$loop" "$loops" "$profile" "$updated"
+    printf 'LOOP=%s\nLOOP_COUNT=%s\nPROFILE=%s\nDDS_PROFILE=%s\nUPDATED_NS=%s\n' \
+      "$loop" "$loops" "$profile" "$dds_profile" "$updated"
     return
   fi
 
@@ -249,16 +253,20 @@ print_status() {
   echo "  Speed:     ${rate}x"
   echo "  Loop:      $loop (completed: $loops)"
   [[ -n "$profile" ]] && echo "  Profile:   $profile"
+  [[ -n "$profile" ]] && echo "  DDS:       $dds_profile"
 }
 
 start_session() {
-  local selection=latest index=1 svo="" profile="$ZED_ROS_PROFILE" loop=false rate=1.0 metadata frames fps
+  local selection=latest index=1 svo="" profile="$ZED_ROS_PROFILE"
+  local dds_profile="${ZED_SESSION_DDS_PROFILE_OVERRIDE:-$DDS_PROFILE_DEFAULT}"
+  local loop=false rate=1.0 metadata frames fps active_dds
   while (($#)); do
     case "$1" in
       --latest) selection=latest ;;
       --index) selection=index; index="${2:-}"; shift ;;
       --svo) selection=path; svo="${2:-}"; shift ;;
       --profile) profile="${2:-}"; shift ;;
+      --dds-profile) dds_profile="${2:-}"; shift ;;
       --loop) loop=true ;;
       --rate) rate="${2:-}"; shift ;;
       *) die "Unknown start option: $1" ;;
@@ -272,6 +280,7 @@ start_session() {
   esac
   svo="$(realpath -e "$svo")" || die "Unreadable SVO2: $svo"
   profile="$(realpath -e "$profile")" || die "Unreadable ROS profile: $profile"
+  dds_profile="$(realpath -e "$dds_profile")" || die "Unreadable DDS profile: $dds_profile"
   [[ "$svo" == *.svo2 || "$svo" == *.svo ]] || die "Expected an SVO/SVO2 file: $svo"
 
   lock_commands
@@ -280,6 +289,10 @@ start_session() {
       die "Replay is already active with $(state_value session.svo)"
     [[ "$(state_value session.profile)" == "$profile" ]] || \
       die "Replay is already active with a different profile"
+    active_dds="$(state_value session.dds_profile)"
+    [[ -n "$active_dds" ]] || active_dds="$DDS_PROFILE_DEFAULT"
+    [[ "$active_dds" == "$dds_profile" ]] || \
+      die "Replay is already active with DDS profile $active_dds"
     echo "Transient replay session is already active; attaching."
     print_status
     return
@@ -290,12 +303,14 @@ start_session() {
   zed_ros_check_calibration
   zed_ros_user_manager_persistent || \
     die "No persistent user manager: run once with sudo loginctl enable-linger $(id -un)"
+  export CYCLONEDDS_URI="file://$dds_profile"
   zed_ros_source_environment
   reset_ros_cli_daemon
   zed_ros_require_no_owner
   clear_session_state
   write_state session.svo "$svo"
   write_state session.profile "$profile"
+  write_state session.dds_profile "$dds_profile"
   write_state session.frames "$frames"
   write_state session.fps "$fps"
   write_state session.loop "$loop"
@@ -309,7 +324,7 @@ start_session() {
     --property=KillSignal=SIGINT \
     --property=TimeoutStopSec=30s \
     --property=SuccessExitStatus=SIGINT \
-    --setenv="CYCLONEDDS_URI=file://$ROOT/config/ros2/cyclonedds-jetson.xml" \
+    --setenv="CYCLONEDDS_URI=file://$dds_profile" \
     "$ROOT/scripts/run_svo_replay_session.sh" "$STATUS_FILE" "$COMMAND_SOCKET" \
       "$profile" "$svo" "$loop" "$rate" \
     >/dev/null
