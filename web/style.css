@@ -300,8 +300,8 @@ h2 {
 
 #replay-controls {
   min-height: 0;
-  flex: 1 1 auto;
-  grid-template-rows: auto auto auto auto minmax(70px, 1fr) auto auto;
+  flex: 0 0 auto;
+  grid-template-rows: auto auto auto auto clamp(84px, 15vh, 126px) auto auto;
 }
 
 button {
@@ -388,8 +388,8 @@ button.small-control {
 }
 
 .datasets {
-  min-height: 70px;
-  max-height: none;
+  min-height: 84px;
+  max-height: 126px;
   overflow: auto;
   border: 1px solid var(--line);
   border-radius: 5px;
@@ -439,7 +439,8 @@ button.small-control {
 .session-details {
   display: grid;
   grid-template-columns: max-content 1fr;
-  flex: 0 1 112px;
+  flex: 1 1 140px;
+  min-height: 110px;
   gap: 4px 10px;
   margin: 0;
   padding: 8px;
@@ -458,8 +459,8 @@ button.small-control {
 }
 
 .operator-message {
-  flex: 0 0 54px;
-  min-height: 54px;
+  flex: 0 0 76px;
+  min-height: 76px;
   margin: 0 8px 8px;
   padding: 7px;
   overflow: auto;
