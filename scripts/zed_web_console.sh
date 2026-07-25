@@ -65,7 +65,7 @@ while (($#)); do
   shift
 done
 
-[[ "$JETSON" =~ ^[A-Za-z0-9._-]+@[A-Za-z0-9._:-]+$ ]] ||
+[[ "$JETSON" =~ ^([A-Za-z0-9._-]+@)?[A-Za-z0-9._:-]+$ ]] ||
   die "Unsafe or invalid SSH target: $JETSON"
 [[ "$REMOTE_ROOT" =~ ^/[A-Za-z0-9._/-]+$ ]] ||
   die "Unsafe or invalid remote root: $REMOTE_ROOT"
