@@ -325,7 +325,7 @@ async function initializeCloud() {
   });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   elements["cloud-view"].prepend(renderer.domElement);
-  const target = new THREE.Vector3(3, 0, 0);
+  const target = new THREE.Vector3(0, 0, 0);
   let radius = 5;
   let azimuth = Math.PI;
   let elevation = 0.35;
@@ -398,7 +398,7 @@ async function initializeCloud() {
   let cloudPoints = null;
 
   function resetView() {
-    target.set(3, 0, 0);
+    target.set(0, 0, 0);
     radius = 5;
     azimuth = Math.PI;
     elevation = 0.35;
