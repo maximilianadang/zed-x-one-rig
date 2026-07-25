@@ -477,7 +477,10 @@ async function initializeCloud() {
     const area = elements["cloud-view"];
     const width = Math.max(1, area.clientWidth);
     const height = Math.max(1, area.clientHeight);
-    renderer.setSize(width, height, false);
+    // Keep the Retina-resolution drawing buffer while sizing the DOM canvas
+    // to the pane's logical CSS dimensions. Without this, a 2x DPR canvas is
+    // clipped to its upper-left quarter and the view center appears bottom-right.
+    renderer.setSize(width, height, true);
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
   }
