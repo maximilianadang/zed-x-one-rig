@@ -59,6 +59,9 @@ physical factory calibrations unless explicitly given
 
 ## One-command remote view and recording
 
+The authoritative current field procedure, recovery sequence, replay controls,
+and rollback contract are in [RUNBOOK.md](RUNBOOK.md).
+
 From the Ubuntu 22.04 viewing workstation, one command starts or attaches to
 the Jetson's calibrated ROS session, opens RViz, and provides recording keys:
 

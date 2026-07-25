@@ -10,6 +10,8 @@ INFER separates proposed conclusions, DERISK makes failure containment and
 acceptance evidence explicit, and implementation does not begin until the user
 approves the gate. The prior RViz field-console plan is preserved at
 `docs/archive/TASKS_REMOTE_FIELD_CONSOLE_2026-07-21.md`.
+The current proven operating and rollback protocol is frozen in the repository
+root at `RUNBOOK.md`.
 
 ## Planning status - 2026-07-25
 
@@ -297,6 +299,9 @@ approves the gate. The prior RViz field-console plan is preserved at
   session.
 - The current Ubuntu/RViz console and replay console remain supported rollback
   paths until browser acceptance is complete.
+- `RUNBOOK.md` remains the authoritative current field protocol. Browser work
+  may not remove or rewrite that protocol before the browser acceptance gate;
+  accepted browser operation is added as a new section only after proof.
 
 ### Proposed resource behavior
 
@@ -375,8 +380,11 @@ approves the gate. The prior RViz field-console plan is preserved at
   not multiply Jetson encoders or permit competing recording actions.
 - **Rollback:** retain the current `zed_field_console.sh`,
   `zed_replay_console.sh`, RViz profile, ROS receiver installer, and direct
-  recorder. Removing the web gateway must require no camera, calibration,
-  driver, or network repair.
+  recorder exactly as documented in root `RUNBOOK.md`. Removing the web gateway
+  must require no camera, calibration, driver, or network repair.
+- **Runbook-drift risk:** test the root runbook before browser changes and again
+  at final acceptance. Do not document a proposed browser path as operational
+  until it has passed its gates; do not delete proven commands when adding it.
 
 ## Decisions awaiting approval
 
@@ -397,6 +405,7 @@ approves the gate. The prior RViz field-console plan is preserved at
 - Backward and arbitrary replay seeking remain unavailable.
 - The Ubuntu/RViz path remains installed and documented as rollback until all
   browser gates pass.
+- Root `RUNBOOK.md` is the operational source of truth throughout this work.
 
 ## Ordered tasks
 
@@ -406,6 +415,9 @@ approves the gate. The prior RViz field-console plan is preserved at
     driver, network-router, cloud, or capture-quality changes.
 
 - [ ] **T0 - freeze browser, fixture, protocol, and baseline contracts.**
+  - Rehearse the root `RUNBOOK.md` current live, recording, reconnect, replay,
+    shutdown, camera-release, and direct-recorder rollback commands before
+    changing the viewing path.
   - Capture the target MacBook hardware, architecture, macOS, Safari, optional
     Chromium, SSH, interface, and expected repository/launcher location.
   - Record the exact installed ROS message definitions, compressed-depth header
@@ -531,4 +543,4 @@ This line of work is complete only when all of the following are true:
   bounded, and measured Jetson GPU/CPU/RAM/network/recording behavior passes
   the documented comparison with RViz.
 - The existing Ubuntu/RViz console, replay console, and direct recorder remain
-  functional rollback paths.
+  functional rollback paths, with the root `RUNBOOK.md` still accurate.
