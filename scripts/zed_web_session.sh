@@ -70,7 +70,8 @@ start_gateway() {
   local token elapsed=0
   [[ -x "$BINARY" ]] || die "Gateway is not built; run: $ROOT/scripts/build_web_gateway.sh"
   for asset in index.html bootstrap.js app.js style.css protocol.js depth_worker.js draco_worker.js \
-    vendor/three.module.min.js vendor/OrbitControls.js vendor/DRACOLoader.js \
+    vendor/three.module.min.js vendor/three.field.module.min.js \
+    vendor/three.core.min.js vendor/OrbitControls.js vendor/DRACOLoader.js \
     vendor/draco/draco_wasm_wrapper.js vendor/draco/draco_decoder.wasm; do
     [[ -r "$ROOT/web/$asset" ]] || die "Missing offline browser asset: $ROOT/web/$asset"
   done

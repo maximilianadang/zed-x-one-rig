@@ -16,13 +16,20 @@ Runtime assets:
 | File | SHA-256 |
 |---|---|
 | `three.module.min.js` | `e2b5ee6bccd38fd6d8a2428546b83c5f2426d84b152ef82be8055556e3b40eb6` |
+| `three.field.module.min.js` | `b28b369ab5090b393a39b5c2699a7b2085007f0cf41d35f3e7e446877981c62f` |
+| `three.core.min.js` | `61ba0df005b05991361d040d8ff670e1aadfd0ce7aeebd1fdb0725957a8957de` |
 | `OrbitControls.js` | `6c860c6b342200f8aef65493319c12bfb2d652107355b1d25eb2154371128391` |
 | `DRACOLoader.js` | `9211e54d182308c64c0ecfb03803b7749149f59d7a3351b45e67775d2a1d58b8` |
 | `THREE-LICENSE.txt` | `bfe119ea4fd413f5f7ca3fcd63adb0c4a073ed39daa2fe7d3e6b769e21272601` |
 
-The two addon modules have one local packaging change: their bare
-`from 'three'` import points to the adjacent pinned
-`./three.module.min.js`. No runtime logic was changed.
+`three.core.min.js` is the pinned r180 dependency required by
+`three.module.min.js`. `three.field.module.min.js` is a byte-for-byte copy of
+the pinned module except that both core-module specifiers carry a field
+packaging revision. This prevents Safari from reusing the earlier failed
+dependency URL. Runtime logic is unchanged.
+
+The two addon modules have one local packaging change: their bare `from
+'three'` import points to the adjacent pinned `./three.module.min.js`.
 
 ## Google Draco decoder
 

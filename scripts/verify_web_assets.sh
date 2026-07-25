@@ -6,6 +6,8 @@ ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 sha256sum --check <<'EOF'
 e2b5ee6bccd38fd6d8a2428546b83c5f2426d84b152ef82be8055556e3b40eb6  web/vendor/three.module.min.js
+b28b369ab5090b393a39b5c2699a7b2085007f0cf41d35f3e7e446877981c62f  web/vendor/three.field.module.min.js
+61ba0df005b05991361d040d8ff670e1aadfd0ce7aeebd1fdb0725957a8957de  web/vendor/three.core.min.js
 6c860c6b342200f8aef65493319c12bfb2d652107355b1d25eb2154371128391  web/vendor/OrbitControls.js
 9211e54d182308c64c0ecfb03803b7749149f59d7a3351b45e67775d2a1d58b8  web/vendor/DRACOLoader.js
 e8049906ef3f8f75d3456c22a3f31bfdfe5b5b5bd09ccdec613b9e9a49d554d8  web/vendor/draco/draco_wasm_wrapper.js

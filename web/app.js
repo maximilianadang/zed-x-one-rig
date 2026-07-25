@@ -302,7 +302,7 @@ function initializeDepth() {
 async function initializeCloud() {
   elements["cloud-health"].textContent = "starting 3D renderer";
   elements["cloud-empty"].textContent = "STARTING 3D RENDERER…";
-  const threeUrl = new URL("./vendor/three.module.min.js", import.meta.url);
+  const threeUrl = new URL("./vendor/three.field.module.min.js", import.meta.url);
   threeUrl.searchParams.set("session", `${Date.now()}-${controllerId.slice(0, 8)}`);
   const THREE = await import(threeUrl.href);
   const scene = new THREE.Scene();

@@ -830,6 +830,8 @@ private:
       {"/depth_worker.js", "depth_worker.js"},
       {"/draco_worker.js", "draco_worker.js"},
       {"/vendor/three.module.min.js", "vendor/three.module.min.js"},
+      {"/vendor/three.field.module.min.js", "vendor/three.field.module.min.js"},
+      {"/vendor/three.core.min.js", "vendor/three.core.min.js"},
       {"/vendor/OrbitControls.js", "vendor/OrbitControls.js"},
       {"/vendor/DRACOLoader.js", "vendor/DRACOLoader.js"},
       {"/vendor/draco/draco_wasm_wrapper.js", "vendor/draco/draco_wasm_wrapper.js"},
