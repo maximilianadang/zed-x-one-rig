@@ -1,6 +1,36 @@
 :root {
+  color-scheme: light;
+  --bg: #edf3f5;
+  --bg-accent: #d4e6eb;
+  --panel: #ffffff;
+  --panel-2: #e7eff2;
+  --line: #b8c9d0;
+  --text: #17252c;
+  --muted: #536a75;
+  --cyan: #006c7b;
+  --green: #087946;
+  --amber: #975800;
+  --red: #bd2635;
+  --viewport: #071014;
+  --empty: #8ca0a9;
+  --button: #dce8ec;
+  --button-border: #9cafb8;
+  --primary: #b9e3e8;
+  --primary-border: #23808c;
+  --danger-bg: #f5dadd;
+  --danger-border: #b95b65;
+  --input: #f7fafb;
+  --dataset: #f7fafb;
+  --dataset-selected: #cce9ed;
+  --message: #f4f7f8;
+  --footer: #f5f9faee;
+  --shadow: #31505d24;
+}
+
+:root[data-theme="dark"] {
   color-scheme: dark;
   --bg: #0b0f12;
+  --bg-accent: #1a2931;
   --panel: #12191e;
   --panel-2: #182229;
   --line: #2a3942;
@@ -10,6 +40,20 @@
   --green: #4bd598;
   --amber: #ffbf5b;
   --red: #ff4f5e;
+  --viewport: #030506;
+  --empty: #61727b;
+  --button: #22313a;
+  --button-border: #3b4d57;
+  --primary: #17525a;
+  --primary-border: #237783;
+  --danger-bg: #3b2024;
+  --danger-border: #72333a;
+  --input: #10171b;
+  --dataset: #10171b;
+  --dataset-selected: #1f3c43;
+  --message: #090d0f;
+  --footer: #0b1115f2;
+  --shadow: #0003;
 }
 
 * {
@@ -22,7 +66,7 @@ body {
   height: 100vh;
   height: 100dvh;
   overflow: hidden;
-  background: radial-gradient(circle at 50% -20%, #1a2931 0, var(--bg) 42rem);
+  background: radial-gradient(circle at 50% -20%, var(--bg-accent) 0, var(--bg) 42rem);
   color: var(--text);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   display: grid;
@@ -91,7 +135,7 @@ h2 {
 
 .pill.danger {
   color: var(--red);
-  border-color: #71343a;
+  border-color: var(--danger-border);
 }
 
 .pill.quiet {
@@ -157,7 +201,7 @@ h2 {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
-  box-shadow: 0 8px 30px #0003;
+  box-shadow: 0 8px 30px var(--shadow);
 }
 
 .panel-title {
@@ -180,7 +224,7 @@ h2 {
   overflow: hidden;
   width: 100%;
   height: calc(100% - 34px);
-  background: #030506;
+  background: var(--viewport);
 }
 
 .image-viewport {
@@ -201,7 +245,7 @@ h2 {
   inset: 0;
   display: grid;
   place-items: center;
-  color: #61727b;
+  color: var(--empty);
   font-size: 15px;
   letter-spacing: .1em;
   pointer-events: none;
@@ -257,9 +301,9 @@ h2 {
 button {
   min-height: 32px;
   padding: 5px 9px;
-  border: 1px solid #3b4d57;
+  border: 1px solid var(--button-border);
   border-radius: 6px;
-  background: #22313a;
+  background: var(--button);
   color: var(--text);
   cursor: pointer;
 }
@@ -274,13 +318,20 @@ button:disabled {
 }
 
 button.primary {
-  border-color: #237783;
-  background: #17525a;
+  border-color: var(--primary-border);
+  background: var(--primary);
 }
 
 button.danger {
-  border-color: #72333a;
-  background: #3b2024;
+  border-color: var(--danger-border);
+  background: var(--danger-bg);
+}
+
+.theme-toggle {
+  min-height: 26px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 11px;
 }
 
 button.small-control {
@@ -324,9 +375,9 @@ button.small-control {
   min-width: 0;
   height: 32px;
   padding: 6px 8px;
-  border: 1px solid #3b4d57;
+  border: 1px solid var(--button-border);
   border-radius: 6px;
-  background: #10171b;
+  background: var(--input);
   color: var(--text);
 }
 
@@ -343,13 +394,13 @@ button.small-control {
   width: 100%;
   min-height: 42px;
   border: 0;
-  border-bottom: 1px solid #26343c;
+  border-bottom: 1px solid var(--line);
   border-radius: 0;
   display: grid;
   grid-template-columns: 30px 1fr auto;
   gap: 8px;
   text-align: left;
-  background: #10171b;
+  background: var(--dataset);
 }
 
 .dataset:last-child {
@@ -357,7 +408,7 @@ button.small-control {
 }
 
 .dataset.selected {
-  background: #1f3c43;
+  background: var(--dataset-selected);
   box-shadow: inset 3px 0 var(--cyan);
 }
 
@@ -408,7 +459,7 @@ button.small-control {
   overflow: auto;
   border: 1px solid var(--line);
   border-radius: 5px;
-  background: #090d0f;
+  background: var(--message);
   color: var(--amber);
   font: inherit;
   font-size: 10px;
@@ -423,7 +474,7 @@ button.small-control {
   display: flex;
   align-items: center;
   gap: 14px;
-  background: #0b1115f2;
+  background: var(--footer);
   backdrop-filter: blur(8px);
   font-size: 10px;
 }

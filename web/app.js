@@ -5,6 +5,13 @@ window.__zedAppStarted = true;
 const query = new URLSearchParams(window.location.search);
 const token = query.get("token") || sessionStorage.getItem("zedGatewayToken") || "";
 const mode = query.get("mode") === "replay" ? "replay" : "live";
+let theme = "light";
+try {
+  theme = localStorage.getItem("zedFieldTheme") === "dark" ? "dark" : "light";
+} catch (error) {
+  theme = "light";
+}
+document.documentElement.dataset.theme = theme;
 if (token) {
   sessionStorage.setItem("zedGatewayToken", token);
   const clean = new URL(window.location.href);
@@ -24,9 +31,26 @@ const elements = Object.fromEntries(
     "replay-toggle", "replay-next", "replay-slower", "replay-faster",
     "replay-loop", "replay-stop", "datasets", "datasets-refresh",
     "dataset-index", "dataset-open",
-    "session-details", "operator-message", "global-alert",
+    "session-details", "operator-message", "global-alert", "theme-toggle",
   ].map((id) => [id, document.getElementById(id)]),
 );
+
+function updateThemeToggle() {
+  elements["theme-toggle"].textContent =
+    document.documentElement.dataset.theme === "dark" ? "Light mode" : "Dark mode";
+}
+
+updateThemeToggle();
+elements["theme-toggle"].addEventListener("click", () => {
+  const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = next;
+  try {
+    localStorage.setItem("zedFieldTheme", next);
+  } catch (error) {
+    // Theme persistence is optional when browser storage is unavailable.
+  }
+  updateThemeToggle();
+});
 
 const streams = {
   rgb: { id: STREAM_IDS.rgb, last: 0, received: [], rendered: [], drops: 0, queueDrops: 0, age: 0, socket: null, backoff: 500, disabled: false },
@@ -278,25 +302,77 @@ function initializeDepth() {
 async function initializeCloud() {
   elements["cloud-health"].textContent = "starting 3D renderer";
   elements["cloud-empty"].textContent = "STARTING 3D RENDERER…";
-  const [THREE, controlsModule] = await Promise.all([
-    import("./vendor/three.module.min.js"),
-    import("./vendor/OrbitControls.js"),
-  ]);
-  const { OrbitControls } = controlsModule;
+  const threeUrl = new URL("./vendor/three.module.min.js", import.meta.url);
+  threeUrl.searchParams.set("session", `${Date.now()}-${controllerId.slice(0, 8)}`);
+  const THREE = await import(threeUrl.href);
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x030506);
   const camera = new THREE.PerspectiveCamera(55, 1, 0.01, 1000);
   camera.up.set(0, 0, 1);
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("webgl2", {
+    antialias: true,
+    powerPreference: "high-performance",
+  });
+  if (!context) {
+    throw new Error("WebGL 2 is unavailable in this browser");
+  }
   const renderer = new THREE.WebGLRenderer({
+    canvas,
+    context,
     antialias: true,
     powerPreference: "high-performance",
   });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   elements["cloud-view"].prepend(renderer.domElement);
-  const controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.08;
-  controls.screenSpacePanning = true;
+  const target = new THREE.Vector3(3, 0, 0);
+  let radius = 5;
+  let azimuth = Math.PI;
+  let elevation = 0.35;
+  let pointer = null;
+
+  function updateCamera() {
+    const horizontal = radius * Math.cos(elevation);
+    camera.position.set(
+      target.x + horizontal * Math.cos(azimuth),
+      target.y + horizontal * Math.sin(azimuth),
+      target.z + radius * Math.sin(elevation),
+    );
+    camera.lookAt(target);
+  }
+
+  renderer.domElement.addEventListener("contextmenu", (event) => event.preventDefault());
+  renderer.domElement.addEventListener("pointerdown", (event) => {
+    pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, button: event.button };
+    renderer.domElement.setPointerCapture(event.pointerId);
+  });
+  renderer.domElement.addEventListener("pointermove", (event) => {
+    if (!pointer || pointer.id !== event.pointerId) return;
+    const dx = event.clientX - pointer.x;
+    const dy = event.clientY - pointer.y;
+    pointer.x = event.clientX;
+    pointer.y = event.clientY;
+    if (pointer.button === 0) {
+      azimuth -= dx * 0.006;
+      elevation = Math.max(-1.45, Math.min(1.45, elevation + dy * 0.006));
+    } else {
+      const scale = radius * 0.0018;
+      target.x += (Math.sin(azimuth) * dx) * scale;
+      target.y -= (Math.cos(azimuth) * dx) * scale;
+      target.z += dy * scale;
+    }
+    updateCamera();
+  });
+  const releasePointer = (event) => {
+    if (pointer?.id === event.pointerId) pointer = null;
+  };
+  renderer.domElement.addEventListener("pointerup", releasePointer);
+  renderer.domElement.addEventListener("pointercancel", releasePointer);
+  renderer.domElement.addEventListener("wheel", (event) => {
+    event.preventDefault();
+    radius = Math.max(0.1, Math.min(500, radius * Math.exp(event.deltaY * 0.001)));
+    updateCamera();
+  }, { passive: false });
 
   function makeGrid(size = 20, step = 1) {
     const positions = [];
@@ -322,11 +398,11 @@ async function initializeCloud() {
   let cloudPoints = null;
 
   function resetView() {
-    controls.target.set(3, 0, 0);
-    camera.position.set(-1.70, 0, 1.71);
-    camera.up.set(0, 0, 1);
-    camera.lookAt(controls.target);
-    controls.update();
+    target.set(3, 0, 0);
+    radius = 5;
+    azimuth = Math.PI;
+    elevation = 0.35;
+    updateCamera();
   }
   resetView();
   elements["reset-view"].addEventListener("click", resetView);
@@ -413,7 +489,6 @@ async function initializeCloud() {
   resizeCloud();
 
   function animate() {
-    controls.update();
     renderer.render(scene, camera);
     requestAnimationFrame(animate);
   }
