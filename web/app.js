@@ -1,6 +1,6 @@
-import * as THREE from "./vendor/three.module.min.js";
-import { OrbitControls } from "./vendor/OrbitControls.js";
 import { parseEnvelope, STREAM_IDS } from "./protocol.js";
+
+window.__zedAppStarted = true;
 
 const query = new URLSearchParams(window.location.search);
 const token = query.get("token") || sessionStorage.getItem("zedGatewayToken") || "";
@@ -29,9 +29,9 @@ const elements = Object.fromEntries(
 );
 
 const streams = {
-  rgb: { id: STREAM_IDS.rgb, last: 0, received: [], rendered: [], drops: 0, queueDrops: 0, age: 0, socket: null, backoff: 500 },
-  depth: { id: STREAM_IDS.depth, last: 0, received: [], rendered: [], drops: 0, queueDrops: 0, age: 0, socket: null, backoff: 500 },
-  cloud: { id: STREAM_IDS.cloud, last: 0, received: [], rendered: [], drops: 0, queueDrops: 0, age: 0, socket: null, backoff: 500 },
+  rgb: { id: STREAM_IDS.rgb, last: 0, received: [], rendered: [], drops: 0, queueDrops: 0, age: 0, socket: null, backoff: 500, disabled: false },
+  depth: { id: STREAM_IDS.depth, last: 0, received: [], rendered: [], drops: 0, queueDrops: 0, age: 0, socket: null, backoff: 500, disabled: false },
+  cloud: { id: STREAM_IDS.cloud, last: 0, received: [], rendered: [], drops: 0, queueDrops: 0, age: 0, socket: null, backoff: 500, disabled: false },
 };
 
 let status = {};
@@ -173,9 +173,27 @@ function connectStream(name, handler) {
 }
 
 function updateConnection() {
-  const open = Object.values(streams).filter((item) => item.socket?.readyState === WebSocket.OPEN).length;
-  elements["connection-pill"].textContent = open === 3 ? "STREAMING" : open ? `CONNECTING ${open}/3` : "RECONNECTING";
-  elements["connection-pill"].className = open === 3 ? "pill" : "pill warning";
+  const available = Object.values(streams).filter((item) => !item.disabled);
+  const open = available.filter((item) => item.socket?.readyState === WebSocket.OPEN).length;
+  const complete = open === available.length;
+  elements["connection-pill"].textContent =
+    complete && available.length === 3 ? "STREAMING"
+      : complete && open ? `STREAMING ${open}/3`
+        : open ? `CONNECTING ${open}/3` : "RECONNECTING";
+  elements["connection-pill"].className =
+    complete && available.length === 3 ? "pill" : "pill warning";
+}
+
+function disableStream(name, message) {
+  streams[name].disabled = true;
+  elements[`${name}-health`].textContent = "UNAVAILABLE";
+  const empty = elements[`${name}-empty`];
+  if (empty) {
+    empty.textContent = `${name.toUpperCase()} UNAVAILABLE`;
+    empty.classList.remove("hidden");
+  }
+  setMessage(message, true);
+  updateConnection();
 }
 
 async function renderRgb(frame) {
@@ -192,33 +210,7 @@ async function renderRgb(frame) {
   elements["rgb-health"].textContent = frame.metadata.frame_id || "live";
 }
 
-const depthWorker = new Worker("/depth_worker.js", { type: "module" });
-depthWorker.onmessage = (event) => {
-  depthPending = false;
-  if (event.data.error) {
-    setMessage(`depth decoder: ${event.data.error}`, true);
-  } else {
-    const canvas = elements["depth-view"];
-    canvas.width = event.data.width;
-    canvas.height = event.data.height;
-    const context = canvas.getContext("2d", { alpha: false });
-    context.putImageData(
-      new ImageData(new Uint8ClampedArray(event.data.pixels), event.data.width, event.data.height),
-      0,
-      0,
-    );
-    elements["depth-empty"].classList.add("hidden");
-    elements["depth-range"].textContent =
-      `${event.data.low.toFixed(2)}–${event.data.high.toFixed(2)} m · ${event.data.valid.toLocaleString()} valid`;
-    accountRendered("depth", depthPendingFrame);
-  }
-  depthPendingFrame = null;
-  if (depthQueued) {
-    const queued = depthQueued;
-    depthQueued = null;
-    submitDepth(queued);
-  }
-};
+let depthWorker = null;
 
 function submitDepth(frame) {
   if (depthPending) {
@@ -235,126 +227,192 @@ function submitDepth(frame) {
   elements["depth-health"].textContent = frame.metadata.frame_id || "live";
 }
 
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x030506);
-const camera = new THREE.PerspectiveCamera(55, 1, 0.01, 1000);
-camera.up.set(0, 0, 1);
-const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-elements["cloud-view"].prepend(renderer.domElement);
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.dampingFactor = 0.08;
-controls.screenSpacePanning = true;
-
-function makeGrid(size = 20, step = 1) {
-  const positions = [];
-  const half = size / 2;
-  for (let value = -half; value <= half; value += step) {
-    positions.push(-half, value, 0, half, value, 0);
-    positions.push(value, -half, 0, value, half, 0);
+function initializeDepth() {
+  try {
+    depthWorker = new Worker("/depth_worker.js", { type: "module" });
+    depthWorker.onmessage = (event) => {
+      depthPending = false;
+      if (event.data.error) {
+        setMessage(`depth decoder: ${event.data.error}`, true);
+      } else {
+        const canvas = elements["depth-view"];
+        canvas.width = event.data.width;
+        canvas.height = event.data.height;
+        const context = canvas.getContext("2d", { alpha: false });
+        context.putImageData(
+          new ImageData(
+            new Uint8ClampedArray(event.data.pixels),
+            event.data.width,
+            event.data.height,
+          ),
+          0,
+          0,
+        );
+        elements["depth-empty"].classList.add("hidden");
+        elements["depth-range"].textContent =
+          `${event.data.low.toFixed(2)}–${event.data.high.toFixed(2)} m · ` +
+          `${event.data.valid.toLocaleString()} valid`;
+        accountRendered("depth", depthPendingFrame);
+      }
+      depthPendingFrame = null;
+      if (depthQueued) {
+        const queued = depthQueued;
+        depthQueued = null;
+        submitDepth(queued);
+      }
+    };
+    depthWorker.onerror = (event) => {
+      disableStream("depth", `Depth renderer failed: ${event.message || "worker error"}`);
+    };
+    connectStream("depth", submitDepth);
+  } catch (error) {
+    disableStream("depth", `Depth renderer could not start: ${error.message}`);
   }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-  return new THREE.LineSegments(
-    geometry,
-    new THREE.LineBasicMaterial({ color: 0xa0a0a4, transparent: true, opacity: 0.5 }),
-  );
 }
 
-scene.add(makeGrid());
-scene.add(new THREE.AxesHelper(1));
-let cloudPoints = null;
-
-function resetView() {
-  controls.target.set(3, 0, 0);
-  camera.position.set(-1.70, 0, 1.71);
+async function initializeCloud() {
+  const [THREE, controlsModule] = await Promise.all([
+    import("./vendor/three.module.min.js"),
+    import("./vendor/OrbitControls.js"),
+  ]);
+  const { OrbitControls } = controlsModule;
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x030506);
+  const camera = new THREE.PerspectiveCamera(55, 1, 0.01, 1000);
   camera.up.set(0, 0, 1);
-  camera.lookAt(controls.target);
-  controls.update();
-}
-resetView();
-elements["reset-view"].addEventListener("click", resetView);
+  const renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    powerPreference: "high-performance",
+  });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  elements["cloud-view"].prepend(renderer.domElement);
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.screenSpacePanning = true;
 
-const dracoWorker = new Worker("/draco_worker.js");
-let pendingCloudMetadata = null;
-
-dracoWorker.onmessage = (event) => {
-  cloudPending = false;
-  if (event.data.error) {
-    setMessage(`Draco decoder: ${event.data.error}`, true);
-  } else {
-    if (cloudPoints) {
-      scene.remove(cloudPoints);
-      cloudPoints.geometry.dispose();
-      cloudPoints.material.dispose();
+  function makeGrid(size = 20, step = 1) {
+    const positions = [];
+    const half = size / 2;
+    for (let value = -half; value <= half; value += step) {
+      positions.push(-half, value, 0, half, value, 0);
+      positions.push(value, -half, 0, value, half, 0);
     }
     const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute(
-      "position",
-      new THREE.BufferAttribute(new Float32Array(event.data.positions), 3),
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    return new THREE.LineSegments(
+      geometry,
+      new THREE.LineBasicMaterial({
+        color: 0xa0a0a4,
+        transparent: true,
+        opacity: 0.5,
+      }),
     );
-    if (event.data.colors) {
-      geometry.setAttribute(
-        "color",
-        new THREE.BufferAttribute(new Uint8Array(event.data.colors), 3, true),
-      );
+  }
+
+  scene.add(makeGrid());
+  scene.add(new THREE.AxesHelper(1));
+  let cloudPoints = null;
+
+  function resetView() {
+    controls.target.set(3, 0, 0);
+    camera.position.set(-1.70, 0, 1.71);
+    camera.up.set(0, 0, 1);
+    camera.lookAt(controls.target);
+    controls.update();
+  }
+  resetView();
+  elements["reset-view"].addEventListener("click", resetView);
+
+  const dracoWorker = new Worker("/draco_worker.js");
+  let pendingCloudMetadata = null;
+
+  function submitCloud(frame) {
+    if (cloudPending) {
+      if (cloudQueued) streams.cloud.queueDrops += 1;
+      cloudQueued = frame;
+      return;
     }
-    const material = new THREE.PointsMaterial({
-      size: 2,
-      sizeAttenuation: false,
-      vertexColors: Boolean(event.data.colors),
-      color: event.data.colors ? 0xffffff : 0x67d5dc,
-    });
-    cloudPoints = new THREE.Points(geometry, material);
-    const translation = pendingCloudMetadata?.fixed_translation || [0, 0, 0];
-    cloudPoints.position.set(translation[0], translation[1], translation[2]);
-    scene.add(cloudPoints);
-    elements["cloud-empty"].classList.add("hidden");
-    elements["cloud-health"].textContent =
-      `${event.data.count.toLocaleString()} points · ${pendingCloudMetadata?.frame_id || "live"}`;
-    accountRendered("cloud", cloudPendingFrame);
+    cloudPending = true;
+    cloudPendingFrame = frame;
+    pendingCloudMetadata = frame.metadata;
+    dracoWorker.postMessage(
+      { id: frame.sequence, payload: frame.payload },
+      [frame.payload],
+    );
   }
-  cloudPendingFrame = null;
-  if (cloudQueued) {
-    const queued = cloudQueued;
-    cloudQueued = null;
-    submitCloud(queued);
+
+  dracoWorker.onmessage = (event) => {
+    cloudPending = false;
+    if (event.data.error) {
+      setMessage(`Draco decoder: ${event.data.error}`, true);
+    } else {
+      if (cloudPoints) {
+        scene.remove(cloudPoints);
+        cloudPoints.geometry.dispose();
+        cloudPoints.material.dispose();
+      }
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute(
+        "position",
+        new THREE.BufferAttribute(new Float32Array(event.data.positions), 3),
+      );
+      if (event.data.colors) {
+        geometry.setAttribute(
+          "color",
+          new THREE.BufferAttribute(new Uint8Array(event.data.colors), 3, true),
+        );
+      }
+      const material = new THREE.PointsMaterial({
+        size: 2,
+        sizeAttenuation: false,
+        vertexColors: Boolean(event.data.colors),
+        color: event.data.colors ? 0xffffff : 0x67d5dc,
+      });
+      cloudPoints = new THREE.Points(geometry, material);
+      const translation = pendingCloudMetadata?.fixed_translation || [0, 0, 0];
+      cloudPoints.position.set(translation[0], translation[1], translation[2]);
+      scene.add(cloudPoints);
+      elements["cloud-empty"].classList.add("hidden");
+      elements["cloud-health"].textContent =
+        `${event.data.count.toLocaleString()} points · ` +
+        `${pendingCloudMetadata?.frame_id || "live"}`;
+      accountRendered("cloud", cloudPendingFrame);
+    }
+    cloudPendingFrame = null;
+    if (cloudQueued) {
+      const queued = cloudQueued;
+      cloudQueued = null;
+      submitCloud(queued);
+    }
+  };
+  dracoWorker.onerror = (event) => {
+    disableStream("cloud", `Point-cloud decoder failed: ${event.message || "worker error"}`);
+  };
+
+  function resizeCloud() {
+    const area = elements["cloud-view"];
+    const width = Math.max(1, area.clientWidth);
+    const height = Math.max(1, area.clientHeight);
+    renderer.setSize(width, height, false);
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
   }
-};
-
-function submitCloud(frame) {
-  if (cloudPending) {
-    if (cloudQueued) streams.cloud.queueDrops += 1;
-    cloudQueued = frame;
-    return;
+  if (typeof ResizeObserver === "function") {
+    new ResizeObserver(resizeCloud).observe(elements["cloud-view"]);
+  } else {
+    window.addEventListener("resize", resizeCloud);
   }
-  cloudPending = true;
-  cloudPendingFrame = frame;
-  pendingCloudMetadata = frame.metadata;
-  dracoWorker.postMessage(
-    { id: frame.sequence, payload: frame.payload },
-    [frame.payload],
-  );
-}
+  resizeCloud();
 
-function resizeCloud() {
-  const area = elements["cloud-view"];
-  const width = Math.max(1, area.clientWidth);
-  const height = Math.max(1, area.clientHeight);
-  renderer.setSize(width, height, false);
-  camera.aspect = width / height;
-  camera.updateProjectionMatrix();
-}
-new ResizeObserver(resizeCloud).observe(elements["cloud-view"]);
-resizeCloud();
-
-function animate() {
-  controls.update();
-  renderer.render(scene, camera);
+  function animate() {
+    controls.update();
+    renderer.render(scene, camera);
+    requestAnimationFrame(animate);
+  }
   requestAnimationFrame(animate);
+  connectStream("cloud", submitCloud);
 }
-requestAnimationFrame(animate);
 
 function renderDetails(values) {
   const preferred = mode === "live"
@@ -586,8 +644,10 @@ if (!token) {
   elements["live-controls"].classList.toggle("hidden", mode !== "live");
   elements["replay-controls"].classList.toggle("hidden", mode !== "replay");
   connectStream("rgb", renderRgb);
-  connectStream("depth", submitDepth);
-  connectStream("cloud", submitCloud);
+  initializeDepth();
+  initializeCloud().catch((error) => {
+    disableStream("cloud", `3D renderer could not start: ${error.message}`);
+  });
   setMutationAvailability(false);
   refreshLease();
   refreshStatus();

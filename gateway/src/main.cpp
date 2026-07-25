@@ -823,6 +823,7 @@ private:
     static const std::map<std::string, std::string> files = {
       {"/", "index.html"},
       {"/index.html", "index.html"},
+      {"/bootstrap.js", "bootstrap.js"},
       {"/app.js", "app.js"},
       {"/protocol.js", "protocol.js"},
       {"/style.css", "style.css"},

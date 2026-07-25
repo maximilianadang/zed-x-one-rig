@@ -16,6 +16,7 @@ command -v "$NODE" >/dev/null 2>&1 || {
   exit 1
 }
 
+"$NODE" --check "$ROOT/web/bootstrap.js"
 "$NODE" --check "$ROOT/web/app.js"
 "$NODE" --check "$ROOT/web/depth_worker.js"
 "$NODE" --check "$ROOT/web/protocol.js"
