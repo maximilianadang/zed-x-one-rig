@@ -411,6 +411,21 @@ async function initializeCloud() {
   let pendingCloudMetadata = null;
 
   function submitCloud(frame) {
+    const declaredPoints =
+      (Number(frame.metadata.width) || 0) * (Number(frame.metadata.height) || 0);
+    if (declaredPoints < 32) {
+      if (cloudPoints) {
+        scene.remove(cloudPoints);
+        cloudPoints.geometry.dispose();
+        cloudPoints.material.dispose();
+        cloudPoints = null;
+      }
+      elements["cloud-health"].textContent = `${declaredPoints} valid points · too sparse`;
+      elements["cloud-empty"].textContent =
+        `WAITING FOR VALID DEPTH\n${declaredPoints} points available`;
+      elements["cloud-empty"].classList.remove("error", "hidden");
+      return;
+    }
     if (cloudPending) {
       if (cloudQueued) streams.cloud.queueDrops += 1;
       cloudQueued = frame;
