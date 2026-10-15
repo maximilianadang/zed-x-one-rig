@@ -2,6 +2,8 @@
 set -euo pipefail
 
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck disable=SC1091
+source "$ROOT/scripts/ros2_common.sh"
 BUILT="$ROOT/build/calibration/stereo_calibration/zed_stereo_calibration"
 PREBUILT="$ROOT/prebuilt/jetson-l4t-r36.5.0-aarch64/zed_stereo_calibration"
 
@@ -14,11 +16,18 @@ else
   exit 1
 fi
 
+case "${1:-}" in
+  -h|--help) exec "$BINARY" "$@" ;;
+esac
+
+zed_ros_require_no_owner
+zed_ros_check_hardware_identity true
+
 exec "$BINARY" \
   --virtual \
-  --left_sn 304467158 \
-  --right_sn 306605936 \
+  --left_id 1 \
+  --right_id 0 \
   --h_edges 9 \
   --v_edges 6 \
-  --square_size 93.0 \
+  --square_size 28.0 \
   "$@"

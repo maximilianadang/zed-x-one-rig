@@ -13,14 +13,18 @@ workstation compatibility is uncertain.
 
 | Item | Operational value |
 |---|---|
-| Physical left | ZED X One GS serial `304467158` |
-| Physical right | ZED X One GS serial `306605936` |
-| Virtual stereo | Serial `116863460` |
+| Physical left | ZED X One GS serial `306605936`, ID 1, port 2 |
+| Physical right | ZED X One GS serial `304467158`, ID 0, port 1 |
+| Virtual stereo | Serial `117941018` |
+| Live input binding | Guarded camera IDs `[1,0]` |
 | Native acquisition | 1920x1200 at 15 FPS |
 | Depth | `NEURAL` |
-| RGB preview | 960x600 at 5 Hz |
+| Depth range ceiling | `100 m` (actual recovery remains scene/confidence dependent) |
+| Left RGB preview | 960x600 at 5 Hz |
+| Right RGB preview | 960x600 at 5 Hz |
 | Registered-depth preview | 960x600 at 5 Hz |
 | Point-cloud preview | `REDUCED` at 2 Hz |
+| Depth confidence threshold | `99` (permissive, excluding the noisiest score bin) |
 | Recording | Lossless synchronized SVO2, 1920x1200 at 15 FPS |
 | Recording directory | `/home/dusty/Videos/ZED/` on the Jetson |
 | ROS domain | `42` |
@@ -29,6 +33,13 @@ workstation compatibility is uncertain.
 
 The preview is not the recording source. Reduced preview quality never changes
 the synchronized native frames retained in SVO2.
+
+ZED confidence is an error score, not a probability: `0` is best and `100` is
+worst. This rig uses threshold `99` so uncertain matches remain visible while
+the pathological worst-score bin is rejected. Point density is therefore not
+proof of geometric accuracy. Lossless SVO2 retains the native synchronized
+images, so depth can be recomputed later with different confidence thresholds
+or algorithms.
 
 ## Non-negotiable safety rules
 
@@ -43,7 +54,8 @@ the synchronized native frames retained in SVO2.
   ordinary operation.
 - Do not restart Argus, the ZED daemon, the GMSL driver, or the Jetson to solve
   SSH, DDS, RViz, or browser problems.
-- Do not modify serial order or `/usr/local/zed/settings/SN116863460.conf`.
+- Do not change the guarded physical mapping in `config/rig.env`, swap browser
+  labels, or modify `/usr/local/zed/settings/SN117941018.conf`.
 - Use only the proven generic lossless recording mode. H.264 and H.265 rejected
   every frame in bounded tests on this virtual rig, even though the low-level
   recorder still exposes experimental switches.
@@ -155,12 +167,20 @@ Outdoor and replay:
   --remote-root /home/dusty/workspace/terraforming_mars/zed-x-one-rig --replay
 ```
 
-The browser receives the same JPEG, compressed-depth, and Draco previews
-through a loopback-only SSH tunnel. The Jetson still performs NEURAL depth and
-lossless SVO2 recording. Its separate `cyclonedds-loopback.xml` profile keeps
+The browser receives both rectified-camera JPEG previews, compressed depth,
+and a compact packed XYZ/RGB view of the ROS point cloud through a loopback-only
+SSH tunnel.
+The Jetson still performs NEURAL depth and lossless SVO2 recording. Its
+separate `cyclonedds-loopback.xml` profile keeps
 DDS discovery and payloads on the Jetson; only SSH-tunneled browser traffic
 crosses the LAN. The browser starts view-only and shows prominent recording
 duration, bytes, and measured write rate.
+
+For the field hardline, keep Wi-Fi active and use the isolated Ethernet subnet
+`10.77.0.1/24` (Jetson) and `10.77.0.2/24` (workstation), with no Ethernet
+gateway. Launch with `--jetson dusty@10.77.0.1`; the numeric target forces all
+browser payload over Ethernet while control/status and recording semantics stay
+unchanged.
 
 `Ctrl+C`, browser closure, laptop sleep, Wi-Fi loss, and tunnel loss leave the
 Jetson session and recording unchanged. Re-run the command to attach. Use the

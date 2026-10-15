@@ -1,9 +1,10 @@
 # Virtual Stereo Recorder
 
-The custom recorder opens the two physical cameras through the ZED SDK virtual
-stereo API, verifies virtual serial `116863460`, and records one synchronized
-SVO2 containing both image streams. NEURAL depth is computed during playback;
-it is not baked into the recording.
+The custom recorder verifies the saved physical mapping (left `306605936` at
+ID 1; right `304467158` at ID 0), opens those guarded IDs through the ZED SDK
+virtual-stereo API under calibrated serial `117941018`, and records one
+synchronized SVO2 containing both image streams. NEURAL depth is computed
+during playback; it is not baked into the recording.
 
 ## Copy/paste commands
 

@@ -44,6 +44,11 @@ echo
 if [[ -r "/opt/ros/$ROS_DISTRO/setup.bash" ]]; then pass "ROS 2 $ROS_DISTRO setup"; else fail "missing ROS 2 $ROS_DISTRO"; fi
 if [[ -r "$ZED_ROS_WORKSPACE/install/local_setup.bash" ]]; then pass "wrapper workspace setup"; else fail "missing wrapper workspace build"; fi
 if zed_ros_check_calibration; then pass "virtual calibration checksum"; else failures=$((failures + 1)); fi
+if zed_ros_check_hardware_identity; then
+  pass "physical left/right serial, ID, port, and I2C identity"
+else
+  failures=$((failures + 1))
+fi
 
 if ((failures == 0)); then
   if $RUNTIME; then
@@ -216,6 +221,8 @@ if $RUNTIME && ((failures == 0)); then
   runtime_param general.grab_resolution HD1200
   runtime_param general.pub_downscale_factor 2.0
   runtime_param general.pub_frame_rate 5.0
+  runtime_param general.virtual_camera_ids "[$LEFT_CAMERA_ID,$RIGHT_CAMERA_ID]"
+  runtime_param general.virtual_serial_numbers "[]"
   runtime_param depth.depth_mode NEURAL
   runtime_param depth.depth_stabilization 0
   runtime_param depth.point_cloud_freq 2.0

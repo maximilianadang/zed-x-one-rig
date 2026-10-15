@@ -4,9 +4,9 @@
 #include <boost/beast/version.hpp>
 #include <boost/beast/websocket.hpp>
 
-#include <point_cloud_interfaces/msg/compressed_point_cloud2.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/compressed_image.hpp>
+#include <sensor_msgs/msg/point_cloud2.hpp>
 
 #include <sys/poll.h>
 #include <sys/types.h>
@@ -17,6 +17,7 @@
 #include <array>
 #include <atomic>
 #include <chrono>
+#include <cmath>
 #include <condition_variable>
 #include <cstdint>
 #include <cstring>
@@ -52,6 +53,7 @@ constexpr std::size_t kHeaderBytes = 32;
 constexpr std::size_t kMaxRgbBytes = 16U * 1024U * 1024U;
 constexpr std::size_t kMaxDepthBytes = 16U * 1024U * 1024U;
 constexpr std::size_t kMaxCloudBytes = 64U * 1024U * 1024U;
+constexpr std::size_t kPackedPointBytes = 16U;
 constexpr std::size_t kMaxControlBody = 256;
 constexpr std::size_t kMaxCommandOutput = 1024U * 1024U;
 constexpr auto kControllerLeaseDuration = 30s;
@@ -61,6 +63,7 @@ enum class StreamId : uint8_t
   Rgb = 1,
   Depth = 2,
   Cloud = 3,
+  Right = 4,
 };
 
 struct Frame
@@ -108,6 +111,14 @@ void append_u32(std::vector<uint8_t> & output, const uint32_t value)
   output.push_back(static_cast<uint8_t>((value >> 8U) & 0xffU));
   output.push_back(static_cast<uint8_t>((value >> 16U) & 0xffU));
   output.push_back(static_cast<uint8_t>((value >> 24U) & 0xffU));
+}
+
+void append_f32(std::vector<uint8_t> & output, const float value)
+{
+  uint32_t bits = 0;
+  static_assert(sizeof(bits) == sizeof(value));
+  std::memcpy(&bits, &value, sizeof(bits));
+  append_u32(output, bits);
 }
 
 std::vector<uint8_t> serialize_frame(const StreamId stream, const Frame & frame)
@@ -228,6 +239,25 @@ public:
           frame.payload = message->data;
           frames_->publish(StreamId::Rgb, std::move(frame));
         });
+    } else if (stream == StreamId::Right) {
+      right_subscription_ = create_subscription<sensor_msgs::msg::CompressedImage>(
+        "/zed/zed_node/right/color/rect/image/compressed", qos,
+        [this](sensor_msgs::msg::CompressedImage::ConstSharedPtr message) {
+          if (message->data.size() > kMaxRgbBytes) {
+            RCLCPP_ERROR_THROTTLE(
+              get_logger(), *get_clock(), 5000,
+              "Rejected oversized right frame: %zu bytes", message->data.size());
+            return;
+          }
+          Frame frame;
+          frame.stamp_sec = message->header.stamp.sec;
+          frame.stamp_nsec = message->header.stamp.nanosec;
+          frame.metadata =
+            "{\"frame_id\":\"" + json_escape(message->header.frame_id) +
+            "\",\"format\":\"" + json_escape(message->format) + "\"}";
+          frame.payload = message->data;
+          frames_->publish(StreamId::Right, std::move(frame));
+        });
     } else if (stream == StreamId::Depth) {
       depth_subscription_ = create_subscription<sensor_msgs::msg::CompressedImage>(
         "/zed/zed_node/depth/depth_registered/compressedDepth", qos,
@@ -248,45 +278,111 @@ public:
           frames_->publish(StreamId::Depth, std::move(frame));
         });
     } else {
-      cloud_subscription_ =
-        create_subscription<point_cloud_interfaces::msg::CompressedPointCloud2>(
-        "/zed/zed_node/point_cloud/cloud_registered/draco", qos,
-        [this](point_cloud_interfaces::msg::CompressedPointCloud2::ConstSharedPtr message) {
-          if (message->compressed_data.size() > kMaxCloudBytes) {
+      cloud_subscription_ = create_subscription<sensor_msgs::msg::PointCloud2>(
+        "/zed/zed_node/point_cloud/cloud_registered", qos,
+        [this](sensor_msgs::msg::PointCloud2::ConstSharedPtr message) {
+          if (message->is_bigendian) {
             RCLCPP_ERROR_THROTTLE(
               get_logger(), *get_clock(), 5000,
-              "Rejected oversized Draco frame: %zu bytes", message->compressed_data.size());
+              "Rejected big-endian PointCloud2 frame");
+            return;
+          }
+          const auto find_float_offset =
+            [&message](const std::string & name) -> std::optional<uint32_t> {
+              for (const auto & field : message->fields) {
+                if (
+                  field.name == name &&
+                  field.datatype == sensor_msgs::msg::PointField::FLOAT32 &&
+                  field.count == 1)
+                {
+                  return field.offset;
+                }
+              }
+              return std::nullopt;
+            };
+          const auto x_offset = find_float_offset("x");
+          const auto y_offset = find_float_offset("y");
+          const auto z_offset = find_float_offset("z");
+          const auto rgb_offset = find_float_offset("rgb");
+          if (
+            !x_offset || !y_offset || !z_offset || !rgb_offset ||
+            *x_offset + sizeof(float) > message->point_step ||
+            *y_offset + sizeof(float) > message->point_step ||
+            *z_offset + sizeof(float) > message->point_step ||
+            *rgb_offset + sizeof(float) > message->point_step)
+          {
+            RCLCPP_ERROR_THROTTLE(
+              get_logger(), *get_clock(), 5000,
+              "PointCloud2 does not contain usable float32 x/y/z/rgb fields");
+            return;
+          }
+
+          Frame frame;
+          frame.payload.reserve(
+            static_cast<std::size_t>(message->width) * message->height *
+            kPackedPointBytes);
+          uint32_t finite_points = 0;
+          for (uint32_t row = 0; row < message->height; ++row) {
+            const std::size_t row_start =
+              static_cast<std::size_t>(row) * message->row_step;
+            for (uint32_t column = 0; column < message->width; ++column) {
+              const std::size_t point_start =
+                row_start + static_cast<std::size_t>(column) * message->point_step;
+              if (point_start + message->point_step > message->data.size()) {
+                RCLCPP_ERROR_THROTTLE(
+                  get_logger(), *get_clock(), 5000,
+                  "Rejected truncated PointCloud2 frame");
+                return;
+              }
+              float x = 0.0F;
+              float y = 0.0F;
+              float z = 0.0F;
+              uint32_t packed_rgb = 0;
+              std::memcpy(&x, message->data.data() + point_start + *x_offset, sizeof(x));
+              std::memcpy(&y, message->data.data() + point_start + *y_offset, sizeof(y));
+              std::memcpy(&z, message->data.data() + point_start + *z_offset, sizeof(z));
+              std::memcpy(
+                &packed_rgb, message->data.data() + point_start + *rgb_offset,
+                sizeof(packed_rgb));
+              if (!std::isfinite(x) || !std::isfinite(y) || !std::isfinite(z)) {
+                continue;
+              }
+              append_f32(frame.payload, x);
+              append_f32(frame.payload, y);
+              append_f32(frame.payload, z);
+              frame.payload.push_back(static_cast<uint8_t>((packed_rgb >> 16U) & 0xffU));
+              frame.payload.push_back(static_cast<uint8_t>((packed_rgb >> 8U) & 0xffU));
+              frame.payload.push_back(static_cast<uint8_t>(packed_rgb & 0xffU));
+              frame.payload.push_back(255U);
+              ++finite_points;
+            }
+          }
+          if (frame.payload.size() > kMaxCloudBytes) {
+            RCLCPP_ERROR_THROTTLE(
+              get_logger(), *get_clock(), 5000,
+              "Rejected oversized packed cloud frame: %zu bytes", frame.payload.size());
             return;
           }
           std::ostringstream metadata;
           metadata << "{\"frame_id\":\"" << json_escape(message->header.frame_id)
-                   << "\",\"format\":\"" << json_escape(message->format)
-                   << "\",\"height\":" << message->height
-                   << ",\"width\":" << message->width
-                   << ",\"is_bigendian\":" << (message->is_bigendian ? "true" : "false")
-                   << ",\"point_step\":" << message->point_step
-                   << ",\"row_step\":" << message->row_step
-                   << ",\"is_dense\":" << (message->is_dense ? "true" : "false")
+                   << "\",\"format\":\"xyzrgb-f32-u8-v1\""
+                   << ",\"height\":1"
+                   << ",\"width\":" << finite_points
+                   << ",\"is_bigendian\":false"
+                   << ",\"point_step\":" << kPackedPointBytes
+                   << ",\"row_step\":" << finite_points * kPackedPointBytes
+                   << ",\"is_dense\":true"
                    << ",\"fixed_frame\":\"zed_camera_link\""
                    << ",\"fixed_translation\":[0.0,0.0,0.0155]"
-                   << ",\"fields\":[";
-          for (std::size_t index = 0; index < message->fields.size(); ++index) {
-            const auto & field = message->fields[index];
-            if (index != 0) {
-              metadata << ',';
-            }
-            metadata << "{\"name\":\"" << json_escape(field.name)
-                     << "\",\"offset\":" << field.offset
-                     << ",\"datatype\":" << static_cast<unsigned>(field.datatype)
-                     << ",\"count\":" << field.count << '}';
-          }
-          metadata << "]}";
-
-          Frame frame;
+                   << ",\"fields\":["
+                   << "{\"name\":\"x\",\"offset\":0,\"datatype\":7,\"count\":1},"
+                   << "{\"name\":\"y\",\"offset\":4,\"datatype\":7,\"count\":1},"
+                   << "{\"name\":\"z\",\"offset\":8,\"datatype\":7,\"count\":1},"
+                   << "{\"name\":\"rgb\",\"offset\":12,\"datatype\":2,\"count\":4}"
+                   << "]}";
           frame.stamp_sec = message->header.stamp.sec;
           frame.stamp_nsec = message->header.stamp.nanosec;
           frame.metadata = metadata.str();
-          frame.payload = message->compressed_data;
           frames_->publish(StreamId::Cloud, std::move(frame));
         });
     }
@@ -306,6 +402,8 @@ public:
     }
     if (stream == StreamId::Rgb) {
       rgb_subscription_.reset();
+    } else if (stream == StreamId::Right) {
+      right_subscription_.reset();
     } else if (stream == StreamId::Depth) {
       depth_subscription_.reset();
     } else {
@@ -319,9 +417,9 @@ private:
   std::mutex subscription_mutex_;
   std::map<StreamId, std::size_t> clients_;
   rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr rgb_subscription_;
+  rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr right_subscription_;
   rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr depth_subscription_;
-  rclcpp::Subscription<point_cloud_interfaces::msg::CompressedPointCloud2>::SharedPtr
-    cloud_subscription_;
+  rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr cloud_subscription_;
 };
 
 struct CommandResult
@@ -610,7 +708,7 @@ private:
     response.set("Referrer-Policy", "no-referrer");
     response.set(
       "Content-Security-Policy",
-      "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; "
+      "default-src 'self'; script-src 'self'; worker-src 'self' blob:; "
       "style-src 'self'; img-src 'self' blob: data:; connect-src 'self' ws://127.0.0.1:* "
       "ws://localhost:*; object-src 'none'; base-uri 'none'; frame-ancestors 'none'");
     response.keep_alive(false);
@@ -708,6 +806,9 @@ private:
     }
     if (path == "/api/v1/stream/cloud") {
       return StreamId::Cloud;
+    }
+    if (path == "/api/v1/stream/right") {
+      return StreamId::Right;
     }
     return std::nullopt;
   }
@@ -828,14 +929,13 @@ private:
       {"/protocol.js", "protocol.js"},
       {"/style.css", "style.css"},
       {"/depth_worker.js", "depth_worker.js"},
-      {"/draco_worker.js", "draco_worker.js"},
+      {"/cloud_codec.js", "cloud_codec.js"},
+      {"/cloud_worker.js", "cloud_worker.js"},
       {"/vendor/three.module.min.js", "vendor/three.module.min.js"},
       {"/vendor/three.field.module.min.js", "vendor/three.field.module.min.js"},
       {"/vendor/three.core.min.js", "vendor/three.core.min.js"},
       {"/vendor/OrbitControls.js", "vendor/OrbitControls.js"},
       {"/vendor/DRACOLoader.js", "vendor/DRACOLoader.js"},
-      {"/vendor/draco/draco_wasm_wrapper.js", "vendor/draco/draco_wasm_wrapper.js"},
-      {"/vendor/draco/draco_decoder.wasm", "vendor/draco/draco_decoder.wasm"},
     };
     const auto mapping = files.find(path);
     if (mapping == files.end()) {

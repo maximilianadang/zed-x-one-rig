@@ -2,6 +2,11 @@
 
 Last updated: 2026-07-17
 
+Historical geometry: this calculation uses the previous approximately 852 mm
+baseline and a July recording. Do not use its numeric minimum distances or FOV
+as measurements of the recalibrated 244.410 mm rig. See
+[ACTIVE_CALIBRATION.md](ACTIVE_CALIBRATION.md) for the current setup.
+
 This note derives the near-field limits for this specific calibrated rig. The key conclusion is:
 
 > Correction: the available information does **not** justify calling `1.5 m` a minimum, or even a predicted practical minimum. The hard rectified-overlap boundary is about `0.642 m`. The number `1.5 m` can be produced only by adding an unsupported assumption—such as requiring 57% horizontal overlap or assuming an 820-pixel matcher limit. Neither assumption is a published ZED specification or a measured threshold for this rig.
@@ -21,7 +26,9 @@ These values were read through ZED SDK 5.4.0 from the valid recording `virtual_s
 | SDK-selected minimum-depth clip | `Z_SDK_min` | `0.322624 m` |
 | SDK-selected maximum-depth clip | `Z_SDK_max` | `20.0 m` |
 
-The calibration assigns physical left camera SN `304467158`, physical right camera SN `306605936`, and virtual stereo SN `116863460`.
+The verified physical mapping is left camera SN `306605936` (ID 1/port 2),
+right camera SN `304467158` (ID 0/port 1), and calibrated virtual stereo SN
+`116863460`.
 
 The installed `.conf` lists `Baseline = 851.662 mm`, which is the dominant horizontal translation component. The full length of the three-dimensional camera-center translation is `851.810 mm`; that full length is the `B` used here.
 

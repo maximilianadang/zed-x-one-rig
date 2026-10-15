@@ -3,7 +3,14 @@ import { parseEnvelope, STREAM_IDS } from "./protocol.js";
 window.__zedAppStarted = true;
 
 const query = new URLSearchParams(window.location.search);
-const token = query.get("token") || sessionStorage.getItem("zedGatewayToken") || "";
+const fragment = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+let storedToken = "";
+try {
+  storedToken = sessionStorage.getItem("zedGatewayToken") || "";
+} catch (error) {
+  storedToken = "";
+}
+const token = query.get("token") || fragment.get("token") || storedToken;
 const mode = query.get("mode") === "replay" ? "replay" : "live";
 let theme = "light";
 try {
@@ -13,10 +20,19 @@ try {
 }
 document.documentElement.dataset.theme = theme;
 if (token) {
-  sessionStorage.setItem("zedGatewayToken", token);
-  const clean = new URL(window.location.href);
-  clean.searchParams.delete("token");
-  history.replaceState({}, "", clean);
+  try {
+    sessionStorage.setItem("zedGatewayToken", token);
+  } catch (error) {
+    // The URL fragment remains the refresh-safe fallback when storage is blocked.
+  }
+  if (query.has("token") || fragment.get("token") !== token) {
+    const clean = new URL(window.location.href);
+    clean.searchParams.delete("token");
+    const cleanFragment = new URLSearchParams(clean.hash.replace(/^#/, ""));
+    cleanFragment.set("token", token);
+    clean.hash = cleanFragment.toString();
+    history.replaceState({}, "", clean);
+  }
 }
 
 const elements = Object.fromEntries(
@@ -24,8 +40,10 @@ const elements = Object.fromEntries(
     "connection-pill", "mode-pill", "profile-pill", "recording-banner",
     "controller-pill",
     "record-elapsed", "record-bytes", "record-rate", "rgb-view", "rgb-empty",
-    "rgb-health", "rgb-stat", "depth-view", "depth-empty", "depth-health",
-    "depth-stat", "depth-range", "cloud-view", "cloud-empty", "cloud-health",
+    "rgb-health", "rgb-stat", "right-view", "right-empty", "right-health",
+    "right-stat", "depth-view", "depth-empty", "depth-health",
+    "depth-stat", "depth-range", "depth-hover", "cloud-view", "cloud-empty",
+    "cloud-health", "cloud-hover",
     "cloud-stat", "reset-view", "control-state", "live-controls",
     "replay-controls", "record-start", "record-stop", "live-stop",
     "replay-toggle", "replay-next", "replay-slower", "replay-faster",
@@ -54,6 +72,7 @@ elements["theme-toggle"].addEventListener("click", () => {
 
 const streams = {
   rgb: { id: STREAM_IDS.rgb, last: 0, received: [], rendered: [], drops: 0, queueDrops: 0, age: 0, socket: null, backoff: 500, disabled: false },
+  right: { id: STREAM_IDS.right, last: 0, received: [], rendered: [], drops: 0, queueDrops: 0, age: 0, socket: null, backoff: 500, disabled: false },
   depth: { id: STREAM_IDS.depth, last: 0, received: [], rendered: [], drops: 0, queueDrops: 0, age: 0, socket: null, backoff: 500, disabled: false },
   cloud: { id: STREAM_IDS.cloud, last: 0, received: [], rendered: [], drops: 0, queueDrops: 0, age: 0, socket: null, backoff: 500, disabled: false },
 };
@@ -69,6 +88,7 @@ let commandBusy = false;
 let priorRecordBytes = 0;
 let priorRecordTime = 0;
 let rgbUrl = null;
+let rightUrl = null;
 let depthPending = false;
 let depthPendingFrame = null;
 let depthQueued = null;
@@ -205,11 +225,10 @@ function updateConnection() {
   const open = available.filter((item) => item.socket?.readyState === WebSocket.OPEN).length;
   const complete = open === available.length;
   elements["connection-pill"].textContent =
-    complete && available.length === 3 ? "STREAMING"
-      : complete && open ? `STREAMING ${open}/3`
-        : open ? `CONNECTING ${open}/3` : "RECONNECTING";
+    complete && open ? "STREAMING"
+      : open ? `CONNECTING ${open}/${available.length}` : "RECONNECTING";
   elements["connection-pill"].className =
-    complete && available.length === 3 ? "pill" : "pill warning";
+    complete && open ? "pill" : "pill warning";
 }
 
 function disableStream(name, message) {
@@ -239,7 +258,82 @@ async function renderRgb(frame) {
   elements["rgb-health"].textContent = frame.metadata.frame_id || "live";
 }
 
+async function renderRight(frame) {
+  const blob = new Blob([frame.payload], { type: "image/jpeg" });
+  const nextUrl = URL.createObjectURL(blob);
+  const oldUrl = rightUrl;
+  elements["right-view"].onload = () => {
+    elements["right-empty"].classList.add("hidden");
+    if (oldUrl) URL.revokeObjectURL(oldUrl);
+    accountRendered("right", frame);
+  };
+  elements["right-view"].src = nextUrl;
+  rightUrl = nextUrl;
+  elements["right-health"].textContent = frame.metadata.frame_id || "live";
+}
+
 let depthWorker = null;
+let latestDepth = null;
+
+function positionReadout(readout, event, container) {
+  readout.classList.remove("hidden");
+  const bounds = container.getBoundingClientRect();
+  const preferredLeft = event.clientX - bounds.left + 12;
+  const preferredTop = event.clientY - bounds.top + 12;
+  const maximumLeft = Math.max(6, container.clientWidth - readout.offsetWidth - 6);
+  const maximumTop = Math.max(6, container.clientHeight - readout.offsetHeight - 6);
+  readout.style.left = `${Math.max(6, Math.min(maximumLeft, preferredLeft))}px`;
+  readout.style.top = `${Math.max(6, Math.min(maximumTop, preferredTop))}px`;
+}
+
+function depthPixelAt(event) {
+  if (!latestDepth) return null;
+  const canvas = elements["depth-view"];
+  const bounds = canvas.getBoundingClientRect();
+  const imageAspect = latestDepth.width / latestDepth.height;
+  const boxAspect = bounds.width / bounds.height;
+  let displayWidth = bounds.width;
+  let displayHeight = bounds.height;
+  let offsetX = 0;
+  let offsetY = 0;
+  if (boxAspect > imageAspect) {
+    displayWidth = bounds.height * imageAspect;
+    offsetX = (bounds.width - displayWidth) / 2;
+  } else {
+    displayHeight = bounds.width / imageAspect;
+    offsetY = (bounds.height - displayHeight) / 2;
+  }
+  const localX = event.clientX - bounds.left - offsetX;
+  const localY = event.clientY - bounds.top - offsetY;
+  if (localX < 0 || localY < 0 || localX >= displayWidth || localY >= displayHeight) {
+    return null;
+  }
+  const x = Math.min(
+    latestDepth.width - 1,
+    Math.floor(localX / displayWidth * latestDepth.width),
+  );
+  const y = Math.min(
+    latestDepth.height - 1,
+    Math.floor(localY / displayHeight * latestDepth.height),
+  );
+  return { x, y, value: latestDepth.values[y * latestDepth.width + x] };
+}
+
+elements["depth-view"].addEventListener("pointermove", (event) => {
+  const sample = depthPixelAt(event);
+  const readout = elements["depth-hover"];
+  if (!sample) {
+    readout.classList.add("hidden");
+    return;
+  }
+  readout.textContent = Number.isFinite(sample.value)
+    ? `Z DEPTH  ${sample.value.toFixed(sample.value < 10 ? 2 : 1)} m\nPIXEL    ${sample.x}, ${sample.y}`
+    : `NO VALID DEPTH\nPIXEL  ${sample.x}, ${sample.y}`;
+  positionReadout(readout, event, elements["depth-view"].parentElement);
+});
+elements["depth-view"].addEventListener("pointerleave", () => {
+  elements["depth-hover"].classList.add("hidden");
+});
 
 function submitDepth(frame) {
   if (depthPending) {
@@ -262,6 +356,7 @@ function initializeDepth() {
     depthWorker.onmessage = (event) => {
       depthPending = false;
       if (event.data.error) {
+        latestDepth = null;
         setMessage(`depth decoder: ${event.data.error}`, true);
       } else {
         const canvas = elements["depth-view"];
@@ -277,6 +372,11 @@ function initializeDepth() {
           0,
           0,
         );
+        latestDepth = {
+          width: event.data.width,
+          height: event.data.height,
+          values: new Float32Array(event.data.depth),
+        };
         elements["depth-empty"].classList.add("hidden");
         elements["depth-range"].textContent =
           `${event.data.low.toFixed(2)}–${event.data.high.toFixed(2)} m · ` +
@@ -330,6 +430,12 @@ async function initializeCloud() {
   let azimuth = Math.PI;
   let elevation = 0.35;
   let pointer = null;
+  let hoverPointer = null;
+  let cloudPoints = null;
+  const projectedPoint = new THREE.Vector3();
+  const localPoint = new THREE.Vector3();
+  const worldPoint = new THREE.Vector3();
+  const clipMatrix = new THREE.Matrix4();
 
   function updateCamera() {
     const horizontal = radius * Math.cos(elevation);
@@ -343,11 +449,16 @@ async function initializeCloud() {
 
   renderer.domElement.addEventListener("contextmenu", (event) => event.preventDefault());
   renderer.domElement.addEventListener("pointerdown", (event) => {
+    elements["cloud-hover"].classList.add("hidden");
     pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, button: event.button };
     renderer.domElement.setPointerCapture(event.pointerId);
   });
   renderer.domElement.addEventListener("pointermove", (event) => {
-    if (!pointer || pointer.id !== event.pointerId) return;
+    hoverPointer = { clientX: event.clientX, clientY: event.clientY };
+    if (!pointer || pointer.id !== event.pointerId) {
+      updateCloudHover(hoverPointer);
+      return;
+    }
     const dx = event.clientX - pointer.x;
     const dy = event.clientY - pointer.y;
     pointer.x = event.clientX;
@@ -368,6 +479,10 @@ async function initializeCloud() {
   };
   renderer.domElement.addEventListener("pointerup", releasePointer);
   renderer.domElement.addEventListener("pointercancel", releasePointer);
+  renderer.domElement.addEventListener("pointerleave", () => {
+    hoverPointer = null;
+    elements["cloud-hover"].classList.add("hidden");
+  });
   renderer.domElement.addEventListener("wheel", (event) => {
     event.preventDefault();
     radius = Math.max(0.1, Math.min(500, radius * Math.exp(event.deltaY * 0.001)));
@@ -395,7 +510,81 @@ async function initializeCloud() {
 
   scene.add(makeGrid());
   scene.add(new THREE.AxesHelper(1));
-  let cloudPoints = null;
+  const hoverMarkerGeometry = new THREE.BufferGeometry();
+  hoverMarkerGeometry.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute([0, 0, 0], 3),
+  );
+  const hoverMarker = new THREE.Points(
+    hoverMarkerGeometry,
+    new THREE.PointsMaterial({
+      color: 0xffdf4d,
+      size: 10,
+      sizeAttenuation: false,
+      depthTest: false,
+    }),
+  );
+  hoverMarker.visible = false;
+  hoverMarker.renderOrder = 10;
+  scene.add(hoverMarker);
+
+  function updateCloudHover(event) {
+    const readout = elements["cloud-hover"];
+    if (!cloudPoints || !event) {
+      readout.classList.add("hidden");
+      hoverMarker.visible = false;
+      return;
+    }
+    const bounds = renderer.domElement.getBoundingClientRect();
+    const cursorX = event.clientX - bounds.left;
+    const cursorY = event.clientY - bounds.top;
+    const positions = cloudPoints.geometry.getAttribute("position");
+    cloudPoints.updateMatrixWorld(true);
+    camera.updateMatrixWorld(true);
+    clipMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    clipMatrix.multiply(cloudPoints.matrixWorld);
+    let selected = -1;
+    let selectedDistanceSquared = 7 * 7;
+    for (let index = 0; index < positions.count; index += 1) {
+      projectedPoint.set(
+        positions.getX(index),
+        positions.getY(index),
+        positions.getZ(index),
+      ).applyMatrix4(clipMatrix);
+      if (projectedPoint.z < -1 || projectedPoint.z > 1) continue;
+      const screenX = (projectedPoint.x * 0.5 + 0.5) * bounds.width;
+      const screenY = (-projectedPoint.y * 0.5 + 0.5) * bounds.height;
+      const distanceSquared =
+        (screenX - cursorX) ** 2 + (screenY - cursorY) ** 2;
+      if (distanceSquared < selectedDistanceSquared) {
+        selected = index;
+        selectedDistanceSquared = distanceSquared;
+      }
+    }
+    if (selected < 0) {
+      readout.classList.add("hidden");
+      hoverMarker.visible = false;
+      return;
+    }
+    localPoint.set(
+      positions.getX(selected),
+      positions.getY(selected),
+      positions.getZ(selected),
+    );
+    worldPoint.copy(localPoint).applyMatrix4(cloudPoints.matrixWorld);
+    const { x, y, z } = worldPoint;
+    const range = Math.hypot(x, y, z);
+    const decimals = range < 10 ? 2 : range < 100 ? 1 : 0;
+    hoverMarkerGeometry.getAttribute("position").setXYZ(0, x, y, z);
+    hoverMarkerGeometry.getAttribute("position").needsUpdate = true;
+    hoverMarker.visible = true;
+    readout.textContent =
+      `RANGE  ${range.toFixed(decimals)} m\n` +
+      `X FWD  ${x.toFixed(decimals)} m\n` +
+      `Y LEFT ${y.toFixed(decimals)} m\n` +
+      `Z UP   ${z.toFixed(decimals)} m`;
+    positionReadout(readout, event, elements["cloud-view"]);
+  }
 
   function resetView() {
     target.set(0, 0, 0);
@@ -407,7 +596,7 @@ async function initializeCloud() {
   resetView();
   elements["reset-view"].addEventListener("click", resetView);
 
-  const dracoWorker = new Worker("/draco_worker.js");
+  const cloudWorker = new Worker("/cloud_worker.js", { type: "module" });
   let pendingCloudMetadata = null;
 
   function submitCloud(frame) {
@@ -434,16 +623,21 @@ async function initializeCloud() {
     cloudPending = true;
     cloudPendingFrame = frame;
     pendingCloudMetadata = frame.metadata;
-    dracoWorker.postMessage(
-      { id: frame.sequence, payload: frame.payload },
+    cloudWorker.postMessage(
+      {
+        id: frame.sequence,
+        payload: frame.payload,
+        format: frame.metadata.format,
+        expectedPoints: declaredPoints,
+      },
       [frame.payload],
     );
   }
 
-  dracoWorker.onmessage = (event) => {
+  cloudWorker.onmessage = (event) => {
     cloudPending = false;
     if (event.data.error) {
-      setMessage(`Draco decoder: ${event.data.error}`, true);
+      setMessage(`Point-cloud decoder: ${event.data.error}`, true);
     } else {
       if (cloudPoints) {
         scene.remove(cloudPoints);
@@ -472,9 +666,12 @@ async function initializeCloud() {
       cloudPoints.position.set(translation[0], translation[1], translation[2]);
       scene.add(cloudPoints);
       elements["cloud-empty"].classList.add("hidden");
+      const nearest = Number(event.data.nearestRange);
       elements["cloud-health"].textContent =
         `${event.data.count.toLocaleString()} points · ` +
+        `${Number.isFinite(nearest) ? `nearest ${nearest.toFixed(nearest < 10 ? 2 : 1)} m · ` : ""}` +
         `${pendingCloudMetadata?.frame_id || "live"}`;
+      updateCloudHover(hoverPointer);
       accountRendered("cloud", cloudPendingFrame);
     }
     cloudPendingFrame = null;
@@ -484,7 +681,7 @@ async function initializeCloud() {
       submitCloud(queued);
     }
   };
-  dracoWorker.onerror = (event) => {
+  cloudWorker.onerror = (event) => {
     disableStream("cloud", `Point-cloud decoder failed: ${event.message || "worker error"}`);
   };
 
@@ -758,6 +955,7 @@ if (!token) {
   elements["live-controls"].classList.toggle("hidden", mode !== "live");
   elements["replay-controls"].classList.toggle("hidden", mode !== "replay");
   connectStream("rgb", renderRgb);
+  connectStream("right", renderRight);
   initializeDepth();
   initializeCloud().catch((error) => {
     disableStream("cloud", `3D renderer could not start: ${error.message}`);

@@ -23,9 +23,11 @@ command -v "$NODE" >/dev/null 2>&1 || {
 "$NODE" --check "$ROOT/web/app.js"
 "$NODE" --check "$ROOT/web/depth_worker.js"
 "$NODE" --check "$ROOT/web/protocol.js"
-"$NODE" --check "$ROOT/web/draco_worker.js"
+"$NODE" --check "$ROOT/web/cloud_codec.js"
+"$NODE" --check "$ROOT/web/cloud_worker.js"
 "$NODE" "$ROOT/tests/web/test_protocol.mjs"
 "$NODE" "$ROOT/tests/web/test_depth_worker.mjs"
+"$NODE" "$ROOT/tests/web/test_cloud_codec.mjs"
 TEMPORARY="$(mktemp -d)"
 mkdir -p "$TEMPORARY/draco3d"
 tar -xzf "$ROOT/offline/web/draco3d-1.5.7.tgz" \

@@ -165,12 +165,7 @@ clear_recording_state() {
 }
 
 camera_pair_available() {
-  local explorer serial block
-  explorer="$(ZED_Explorer --all 2>&1)" || return 1
-  for serial in "$LEFT_SERIAL" "$RIGHT_SERIAL"; do
-    block="$(grep -A4 "S/N :  $serial" <<<"$explorer" || true)"
-    [[ -n "$block" ]] && grep -q 'State :  "AVAILABLE"' <<<"$block" || return 1
-  done
+  zed_ros_check_hardware_identity true
 }
 
 print_status() {

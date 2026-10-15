@@ -1,13 +1,13 @@
 # Dual ZED X One GS Rig
 
 Reproducible source, configuration, calibration, launchers, and offline field
-documentation for this machine's wide-baseline virtual stereo system.
+documentation for this machine's virtual stereo system.
 
 This repository is rig-specific. Its camera serial numbers, left/right order,
 virtual serial, calibration, and expected Jetson/ZED versions are intentional.
 Do not install its calibration on a different camera pair.
 
-## Exact known-good rig
+## Current configured rig
 
 | Component | Value |
 |---|---|
@@ -17,18 +17,25 @@ Do not install its calibration on a different camera pair.
 | Ubuntu | 22.04.5 LTS |
 | ZED SDK | 5.4.0 |
 | CUDA reported by ZED | 12.6.68 |
-| Calibrated left camera | ZED X One GS, SN `304467158` |
-| Calibrated right camera | ZED X One GS, SN `306605936` |
-| Virtual stereo serial | `116863460` |
+| Physical/calibrated left camera | ZED X One GS, SN `306605936`, ID 1, port 2 |
+| Physical/calibrated right camera | ZED X One GS, SN `304467158`, ID 0, port 1 |
+| Virtual stereo serial | `117941018` |
 | Capture mode | 1920x1200 at 15 FPS |
 | Media Server endpoint | `127.0.0.1:34000` |
-| Checkerboard | 9x6 inner corners, 93.0 mm squares |
-| Solved baseline | 851.810 mm (2.795 ft) |
-| Reprojection RMS | left 0.14 px, right 0.14 px, stereo 0.20 px |
+| Checkerboard | 9x6 inner corners, 28.0 mm squares |
+| Solved horizontal baseline | 244.410 mm |
+| Calibration validation | Installed and identity/checksum checked; known-distance live check pending |
 
-Serial numbers are authoritative. Camera IDs can change. On the 2026-07-17
-snapshot, Explorer reported SN `304467158` on `/dev/i2c-9`, ID 0, port 1 and
-SN `306605936` on `/dev/i2c-10`, ID 1, port 2.
+The camera baseline changed on 2026-10-14. See
+[docs/ACTIVE_CALIBRATION.md](docs/ACTIVE_CALIBRATION.md) for the new calibration
+and historical-recording caveats. Previous RMS and near-field measurements
+describe the old rig, not this geometry.
+
+Serial numbers remain the camera identities. The operational source order is
+the saved and guarded GMSL binding `[ID 1, ID 0]`: left SN `306605936` on
+`/dev/i2c-10`, port 2; right SN `304467158` on `/dev/i2c-9`, port 1. Startup
+refuses to run if serial, ID, port, or I2C path differs. See
+[docs/PHYSICAL_STATE.md](docs/PHYSICAL_STATE.md).
 
 ## First commands
 
@@ -98,9 +105,10 @@ offline operation, recovery semantics, and network checks.
 
 ## Native browser view on macOS or Linux
 
-The additive browser viewer preserves the same 5/5/2 Hz compressed preview and
-15 FPS lossless SVO2 contract without requiring Ubuntu, ROS, RViz, ZED SDK,
-CUDA, VNC, Node, a cloud account, or internet on the viewing computer:
+The additive browser viewer publishes both rectified camera views and preserves
+the same 5 Hz image/depth, 2 Hz cloud, and 15 FPS lossless SVO2 contract without
+requiring Ubuntu, ROS, RViz, ZED SDK, CUDA, VNC, Node, a cloud account, or
+internet on the viewing computer:
 
 ```bash
 ./scripts/zed_web_console.sh \
@@ -110,10 +118,11 @@ CUDA, VNC, Node, a cloud account, or internet on the viewing computer:
 
 Use `--outdoor` for the approved exposure profile or `--replay` for the
 finalized-SVO2 browser. The Jetson gateway binds only to loopback and is reached
-through SSH. It forwards the existing JPEG, compressed-depth, and Draco bytes;
-decode and rendering occur in the browser. A browser-specific Cyclone DDS
-profile also confines the ROS graph to Jetson loopback, so no DDS discovery or
-payload traffic is required on the field LAN.
+through SSH. It forwards the existing left/right JPEG and compressed-depth
+bytes; the gateway strips invalid cloud samples into a compact packed XYZ/RGB
+stream, and rendering occurs in the browser without a Draco/WASM dependency. A
+browser-specific Cyclone DDS profile also confines the ROS graph to Jetson
+loopback, so no DDS discovery or payload traffic is required on the field LAN.
 
 Build it once on the Jetson:
 

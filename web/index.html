@@ -34,12 +34,23 @@
     <main class="dashboard">
       <section class="panel image-panel">
         <div class="panel-title">
-          <h2>Rectified RGB</h2>
+          <h2>Rectified left</h2>
           <span id="rgb-health">waiting</span>
         </div>
         <div class="viewport image-viewport">
-          <img id="rgb-view" alt="Live rectified RGB stream">
+          <img id="rgb-view" alt="Live rectified left-camera stream">
           <div id="rgb-empty" class="empty-state">NO IMAGE</div>
+        </div>
+      </section>
+
+      <section class="panel image-panel">
+        <div class="panel-title">
+          <h2>Rectified right</h2>
+          <span id="right-health">waiting</span>
+        </div>
+        <div class="viewport image-viewport">
+          <img id="right-view" alt="Live rectified right-camera stream">
+          <div id="right-empty" class="empty-state">NO IMAGE</div>
         </div>
       </section>
 
@@ -52,6 +63,7 @@
           <canvas id="depth-view"></canvas>
           <div id="depth-empty" class="empty-state">NO IMAGE</div>
           <div id="depth-range" class="range-label">—</div>
+          <div id="depth-hover" class="hover-readout hidden"></div>
         </div>
       </section>
 
@@ -63,6 +75,7 @@
         </div>
         <div id="cloud-view" class="viewport cloud-viewport">
           <div id="cloud-empty" class="empty-state">NO POINT CLOUD</div>
+          <div id="cloud-hover" class="hover-readout hidden"></div>
         </div>
       </section>
 
@@ -108,7 +121,8 @@
     </main>
 
     <footer class="footer">
-      <div class="stream-stat"><strong>RGB</strong><span id="rgb-stat">0 Hz · 0 drops</span></div>
+      <div class="stream-stat"><strong>Left</strong><span id="rgb-stat">0 Hz · 0 drops</span></div>
+      <div class="stream-stat"><strong>Right</strong><span id="right-stat">0 Hz · 0 drops</span></div>
       <div class="stream-stat"><strong>Depth</strong><span id="depth-stat">0 Hz · 0 drops</span></div>
       <div class="stream-stat"><strong>Cloud</strong><span id="cloud-stat">0 Hz · 0 drops</span></div>
       <div class="footer-note">1920×1200 @ 15 FPS lossless capture · 960×600 @ 5 Hz preview · cloud @ 2 Hz</div>

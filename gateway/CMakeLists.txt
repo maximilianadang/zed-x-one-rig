@@ -8,7 +8,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
-find_package(point_cloud_interfaces REQUIRED)
 find_package(Boost 1.74 REQUIRED)
 find_package(Threads REQUIRED)
 
@@ -17,7 +16,6 @@ ament_target_dependencies(
   zed_web_gateway
   rclcpp
   sensor_msgs
-  point_cloud_interfaces
 )
 target_link_libraries(
   zed_web_gateway

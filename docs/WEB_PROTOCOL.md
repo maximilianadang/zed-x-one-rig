@@ -1,8 +1,8 @@
 # ZED browser gateway protocol
 
-Protocol version 1 carries each already-compressed ROS preview message as one
-binary WebSocket message. RGB, depth, and cloud use separate sockets so a
-large cloud cannot queue newer image frames behind it.
+Protocol version 1 carries each preview as one binary WebSocket message. Left,
+right, depth, and cloud use separate sockets so a large cloud cannot queue
+newer image frames behind it.
 
 The gateway listens only on Jetson loopback. The workstation reaches it through
 an authenticated SSH local-forward and supplies the per-gateway bearer token
@@ -11,6 +11,7 @@ in the WebSocket query string and HTTP `X-ZED-Token` header.
 ## Stream endpoints
 
 - `/api/v1/stream/rgb?v=1&token=...`
+- `/api/v1/stream/right?v=1&token=...`
 - `/api/v1/stream/depth?v=1&token=...`
 - `/api/v1/stream/cloud?v=1&token=...`
 
@@ -23,24 +24,25 @@ All integers in the fixed 32-byte header are little-endian:
 |---:|---|---|
 | 0 | 4 bytes | ASCII magic `ZXR1` |
 | 4 | `uint16` | protocol version, currently `1` |
-| 6 | `uint8` | stream: RGB `1`, depth `2`, cloud `3` |
+| 6 | `uint8` | stream: left RGB `1`, depth `2`, cloud `3`, right RGB `4` |
 | 7 | `uint8` | flags, currently `0` |
 | 8 | `uint32` | per-stream sequence |
 | 12 | `int32` | ROS header stamp seconds |
 | 16 | `uint32` | ROS header stamp nanoseconds |
 | 20 | `uint32` | UTF-8 JSON metadata byte count |
-| 24 | `uint32` | compressed payload byte count |
+| 24 | `uint32` | payload byte count |
 | 28 | `uint32` | reserved, must be zero |
 
-The small metadata document immediately follows the header. The compressed
-payload follows the metadata. Large payloads are never JSON- or base64-encoded.
+The small metadata document immediately follows the header. The binary payload
+follows the metadata. Large payloads are never JSON- or base64-encoded.
 
-- RGB payload: the original `sensor_msgs/CompressedImage.data` JPEG.
+- Left/right RGB payload: the original `sensor_msgs/CompressedImage.data` JPEG.
 - Depth payload: the original compressed-depth bytes, including the 12-byte
   transport configuration header followed by its 16-bit PNG.
-- Cloud payload: the original
-  `point_cloud_interfaces/CompressedPointCloud2.compressed_data` Draco stream.
-  Metadata retains the PointCloud2 layout and Draco format.
+- Cloud payload: finite samples from the raw ROS PointCloud2, compacted by the
+  gateway into 16-byte `xyzrgb-f32-u8-v1` records. Each record is little-endian
+  float32 X/Y/Z followed by uint8 R/G/B and one padding byte. Metadata width is
+  the finite point count and height is one.
 
 Receivers must reject unknown versions, stream IDs, inconsistent lengths, or
 messages above their documented stream limit.

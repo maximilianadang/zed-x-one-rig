@@ -1,6 +1,6 @@
 export const PROTOCOL_VERSION = 1;
 export const HEADER_BYTES = 32;
-export const STREAM_IDS = Object.freeze({ rgb: 1, depth: 2, cloud: 3 });
+export const STREAM_IDS = Object.freeze({ rgb: 1, depth: 2, cloud: 3, right: 4 });
 
 export function parseEnvelope(arrayBuffer, expectedStream) {
   if (!(arrayBuffer instanceof ArrayBuffer) || arrayBuffer.byteLength < HEADER_BYTES) {

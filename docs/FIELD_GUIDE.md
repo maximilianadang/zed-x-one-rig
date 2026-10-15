@@ -1,6 +1,6 @@
 # Dual ZED X One GS Field Guide
 
-Last updated: 2026-07-21
+Last updated: 2026-10-14
 
 This guide is specific to the dual ZED X One GS rig on this Jetson Orin Nano with the ZED Link Capture Duo. It is designed to be usable without internet access.
 
@@ -26,54 +26,57 @@ Rig-specific near-field derivation:
 /home/dusty/workspace/terraforming_mars/zed-x-one-rig/docs/NEAR_FIELD_MATH.md
 ```
 
-This derives the hard geometric overlap limit and explains why `1.5 m` cannot be claimed as a minimum without an unpublished matcher limit or a controlled measurement.
+This historical note derives the old rig's geometric overlap limit. Its numeric
+distances do not describe the new 244.410 mm baseline. The general reasoning
+still explains why `1.5 m` cannot be assumed to be a minimum.
 
-## Known-good rig configuration
+## Current rig configuration
 
-- Physical left camera: serial `304467158` (observed Explorer ID `0`, port `1`)
-- Physical right camera: serial `306605936` (observed Explorer ID `1`, port `2`)
-- Virtual stereo serial: `116863460`
+- Physical left camera: serial `306605936` (guarded Explorer ID `1`, port `2`)
+- Physical right camera: serial `304467158` (guarded Explorer ID `0`, port `1`)
+- Virtual stereo serial: `117941018`
 - Native capture mode: `1920x1200` at `15 FPS`
-- Checkerboard: `9x6` inner corners, `93.0 mm` per individual black or white tile
-- Solved baseline: `851.810 mm` (`2.795 ft`)
-- Calibration result: 15 captured pairs, 13 detected, 1 outlier rejected, 12 used
-- Reprojection RMS: left `0.14 px`, right `0.14 px`, stereo `0.20 px`
+- Checkerboard: `9x6` inner corners, `28.0 mm` per individual black or white tile
+- Solved horizontal baseline: `244.410 mm`
+- Calibration installed and identity/checksum checked; known-distance live
+  validation is pending. See [ACTIVE_CALIBRATION.md](ACTIVE_CALIBRATION.md).
 
-Always identify the cameras by serial number. Camera IDs can change.
+Identify cameras by serial number. The operating scripts additionally require
+the saved ID/port/path binding and refuse to open if it changes.
 
 ## Calibration files
 
 Installed SDK calibration:
 
 ```text
-/usr/local/zed/settings/SN116863460.conf
+/usr/local/zed/settings/SN117941018.conf
 ```
 
 Persistent source copies:
 
 ```text
-/home/dusty/workspace/terraforming_mars/zed-x-one-rig/calibration/active/SN116863460.conf
-/home/dusty/workspace/terraforming_mars/zed-x-one-rig/calibration/active/zed_calibration_116863460.yml
+/home/dusty/workspace/terraforming_mars/zed-x-one-rig/calibration/active/SN117941018.conf
+/home/dusty/workspace/terraforming_mars/zed-x-one-rig/calibration/active/zed_calibration_117941018.yml
 ```
 
 Expected SHA-256 for the installed `.conf` file:
 
 ```text
-0502a05ec12942b4f02c375793c1200c6bec1387b4368c744121cbf61da19ed6
+02f32f76dfce5dd99410f8e30983a98037cd3fde53557f675ccec92d9d7d38fe
 ```
 
 Verify it:
 
 ```bash
-sha256sum /usr/local/zed/settings/SN116863460.conf
+sha256sum /usr/local/zed/settings/SN117941018.conf
 ```
 
 Reinstall it if necessary:
 
 ```bash
 sudo install -m 0644 \
-  /home/dusty/workspace/terraforming_mars/zed-x-one-rig/calibration/active/SN116863460.conf \
-  /usr/local/zed/settings/SN116863460.conf
+  /home/dusty/workspace/terraforming_mars/zed-x-one-rig/calibration/active/SN117941018.conf \
+  /usr/local/zed/settings/SN117941018.conf
 ```
 
 Do not overwrite `SN304467158.conf` or `SN306605936.conf`; those are the individual cameras' factory calibration files.
@@ -95,7 +98,9 @@ SN 306605936  AVAILABLE  /dev/i2c-10
 
 ## Start NEURAL depth directly
 
-This repository's reprojection viewer explicitly uses `DEPTH_MODE::NEURAL`, opens the two serials through the SDK virtual-stereo API, and displays the rectified image and live 3D point cloud:
+This repository's reprojection viewer explicitly uses `DEPTH_MODE::NEURAL`,
+opens the guarded physical ID order, supplies the saved OpenCV calibration, and
+displays the rectified image and live 3D point cloud:
 
 ```bash
 cd /home/dusty/workspace/terraforming_mars/zed-x-one-rig
@@ -103,14 +108,15 @@ cd /home/dusty/workspace/terraforming_mars/zed-x-one-rig
 ./scripts/launch_neural_viewer.sh
 ```
 
-The installed `SN116863460.conf` is loaded automatically. To force the workspace OpenCV calibration instead:
+The launcher supplies the workspace OpenCV calibration. The equivalent command
+is:
 
 ```bash
 ./build/calibration/stereo_reprojection_viewer/zed_reprojection_viewer \
   --virtual \
-  --left_sn 304467158 \
-  --right_sn 306605936 \
-  --ocv /home/dusty/workspace/terraforming_mars/zed-x-one-rig/calibration/active/zed_calibration_116863460.yml
+  --left_id 1 \
+  --right_id 0 \
+  --ocv /home/dusty/workspace/terraforming_mars/zed-x-one-rig/calibration/active/zed_calibration_117941018.yml
 ```
 
 Press `Q` or `Esc`, or close the 3D window, to release both cameras.
@@ -235,7 +241,7 @@ are documented in `docs/FIELD_CONSOLE.md`.
 
 For standalone recording without the remote view, use the direct recorder.
 
-Use the application named **ZED Virtual Stereo Recorder** from the desktop application menu. It opens the two cameras as calibrated virtual stereo serial `116863460` and starts recording immediately in reliable headless mode. This route does **not** use Media Server, does **not** need sudo, and does **not** need internet.
+Use the application named **ZED Virtual Stereo Recorder** from the desktop application menu. It opens the two cameras as calibrated virtual stereo serial `117941018` and starts recording immediately in reliable headless mode. This route does **not** use Media Server, does **not** need sudo, and does **not** need internet.
 
 The equivalent terminal command is:
 
@@ -279,7 +285,12 @@ is already headless, so `--no-preview` is explicit but optional. Do not use
 2026-07-21 bounded tests on this exact virtual pair; treat them as experimental,
 not field-supported presets.
 
-The corrected direct recorder was validated on this Jetson on 2026-07-17 using `ZED_SVO_Editor -inf`. A bounded headless lossless test produced a readable SVO2 v2 containing 46 indexed frames at 1920×1200, 15 FPS, with virtual serial `116863460`. It was approximately 169 MB, or roughly 56 MB/s; the actual rate varies with image content. Budget storage conservatively for long lossless sessions. The recorder produces one synchronized stereo SVO2 containing both camera streams. The installed `SN116863460.conf` associates the rig calibration with the virtual camera; NEURAL depth is computed from the stereo images during playback rather than baked into the file.
+Historical recorder test (2026-07-17, old baseline): `ZED_SVO_Editor -inf`
+reported 46 indexed frames at 1920x1200, 15 FPS, virtual serial `116863460`.
+That file was approximately 169 MB (roughly 56 MB/s); actual rate varies with
+image content. This is not validation of the new calibration. Current capture
+uses `117941018` and saves both synchronized camera streams; NEURAL depth is
+computed during playback rather than baked into the lossless file.
 
 ## Validate and view an SVO2 recording
 
@@ -395,7 +406,7 @@ camera owner and do not terminate it.
 
 ## Media Server, live Depth Viewer, and GUI recording fallback
 
-The installed calibration enables SDK applications that explicitly open virtual stereo serial `116863460`. Some current ZED GUI tools do not directly create a dual-ZED-X-One pair through the new virtual-stereo API.
+The installed calibration enables SDK applications that explicitly open virtual stereo serial `117941018`. Some current ZED GUI tools do not directly create a dual-ZED-X-One pair through the new virtual-stereo API.
 
 The window named `Rectified Image` in `zed_reprojection_viewer` is only the rectified **left-camera preview**. The 3D point cloud in that application still uses both cameras. That viewer does not record SVO files.
 
@@ -405,9 +416,9 @@ For live use of ZED Depth Viewer, or for recording through ZED Explorer, use thi
 2. Confirm both physical cameras are `AVAILABLE` with `ZED_Explorer --all`.
 3. Launch **ZED Virtual Stereo Stream** from the application menu. It loads the field kit's exact pair configuration and streams on `127.0.0.1:34000`. Keep its terminal open. On this Media Server `0.1.9` installation, the server may request the Jetson sudo password.
 4. If using **ZED Media Server** instead, configure:
-   - Left: `304467158`
-   - Right: `306605936`
-   - Virtual stereo serial: `116863460`
+   - Left: `306605936`
+   - Right: `304467158`
+   - Virtual stereo serial: `117941018`
    - Resolution/frame rate: `HD1200`, `15 FPS`
 5. Click **SAVE**, then click **Stream**. The normal local streaming port is `34000`.
 6. Choose the GUI for the task:

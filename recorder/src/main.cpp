@@ -1,4 +1,5 @@
 #include <sl/Camera.hpp>
+#include <sl/CameraOne.hpp>
 
 #include <opencv2/opencv.hpp>
 
@@ -15,9 +16,11 @@
 
 namespace {
 
-constexpr unsigned int kLeftSerial = 304467158;
-constexpr unsigned int kRightSerial = 306605936;
-constexpr unsigned int kExpectedVirtualSerial = 116863460;
+constexpr unsigned int kLeftSerial = 306605936;
+constexpr int kLeftCameraId = 1;
+constexpr unsigned int kRightSerial = 304467158;
+constexpr int kRightCameraId = 0;
+constexpr unsigned int kExpectedVirtualSerial = 117941018;
 constexpr int kFps = 15;
 
 std::atomic<bool> keep_running{true};
@@ -51,12 +54,10 @@ void printUsage(const char* app) {
       << "Calibrated dual-ZED-X-One SVO2 recorder\n\n"
       << "Usage: " << app << " [options]\n\n"
       << "COPY/PASTE COMMANDS FOR THIS RIG\n\n"
-      << "  Recommended smaller field recording (H.264):\n"
-      << "    /home/dusty/workspace/terraforming_mars/zed-x-one-rig/scripts/record_virtual_stereo.sh --h264\n\n"
-      << "  Maximum-fidelity recording for depth analysis (large files):\n"
+      << "  Recommended field recording, preserving both images for depth analysis:\n"
       << "    /home/dusty/workspace/terraforming_mars/zed-x-one-rig/scripts/record_virtual_stereo.sh --lossless\n\n"
-      << "  One-minute H.264 recording with an explicit filename (900 frames at 15 FPS):\n"
-      << "    /home/dusty/workspace/terraforming_mars/zed-x-one-rig/scripts/record_virtual_stereo.sh --h264 --frames 900 --output /home/dusty/Videos/ZED/field_test.svo2\n\n"
+      << "  900-frame lossless recording (one minute of camera time at 15 FPS):\n"
+      << "    /home/dusty/workspace/terraforming_mars/zed-x-one-rig/scripts/record_virtual_stereo.sh --lossless --frames 900 --output /home/dusty/Videos/ZED/field_test.svo2\n\n"
       << "Recording begins immediately. Press Ctrl+C and wait for finalization before removing power.\n"
       << "The default is lossless and can consume roughly 3.4 GB/minute on this rig.\n\n"
       << "Options:\n"
@@ -65,8 +66,8 @@ void printUsage(const char* app) {
       << "  --preview       Experimental preview; not reliable while recording on this Jetson\n"
       << "  --no-preview    Record without a preview window (default)\n"
       << "  --lossless      PNG/ZSTD lossless recording (default; largest files)\n"
-      << "  --h264          H.264 lossy recording (smaller; may affect depth)\n"
-      << "  --h265          H.265 lossy recording (requires encoder support)\n"
+      << "  --h264          Experimental; rejected frames in this rig's field tests\n"
+      << "  --h265          Experimental; rejected frames in this rig's field tests\n"
       << "  -h, --help      Show this help\n";
 }
 
@@ -146,18 +147,26 @@ int main(int argc, char** argv) {
   std::signal(SIGINT, onSignal);
   std::signal(SIGTERM, onSignal);
 
-  const unsigned int virtual_serial =
-      sl::generateVirtualStereoSerialNumber(kLeftSerial, kRightSerial);
-  if (virtual_serial != kExpectedVirtualSerial) {
-    std::cerr << "Unexpected virtual serial " << virtual_serial << " (expected "
-              << kExpectedVirtualSerial << "). Refusing to use the wrong calibration.\n";
+  bool left_identity_ok = false;
+  bool right_identity_ok = false;
+  for (const auto& device : sl::CameraOne::getDeviceList()) {
+    left_identity_ok |=
+        device.id == kLeftCameraId && device.serial_number == kLeftSerial;
+    right_identity_ok |=
+        device.id == kRightCameraId && device.serial_number == kRightSerial;
+  }
+  if (!left_identity_ok || !right_identity_ok) {
+    std::cerr << "Camera ID/serial identity differs from the saved physical rig state.\n"
+              << "Expected left ID " << kLeftCameraId << " = " << kLeftSerial
+              << ", right ID " << kRightCameraId << " = " << kRightSerial
+              << ". Refusing to open an unverified stereo order.\n";
     return EXIT_FAILURE;
   }
 
   std::cout << "Opening calibrated virtual stereo camera\n"
-            << "  Left:        " << kLeftSerial << '\n'
-            << "  Right:       " << kRightSerial << '\n'
-            << "  Virtual:     " << virtual_serial << '\n'
+            << "  Left:        " << kLeftSerial << " (ID " << kLeftCameraId << ")\n"
+            << "  Right:       " << kRightSerial << " (ID " << kRightCameraId << ")\n"
+            << "  Virtual:     " << kExpectedVirtualSerial << '\n'
             << "  Mode:        HD1200 @ " << kFps << " FPS\n"
             << "  Compression: " << compressionName(options.compression) << '\n'
             << "  Output:      " << options.output << "\n";
@@ -167,8 +176,8 @@ int main(int argc, char** argv) {
   init.camera_fps = kFps;
   init.depth_mode = sl::DEPTH_MODE::NONE;
   init.sdk_verbose = false;
-  init.input.setVirtualStereoFromSerialNumbers(kLeftSerial, kRightSerial,
-                                                virtual_serial);
+  init.input.setVirtualStereoFromCameraIDs(
+      kLeftCameraId, kRightCameraId, kExpectedVirtualSerial);
 
   sl::Camera camera;
   const auto open_result = camera.open(init);

@@ -29,5 +29,6 @@ new DataView(badVersion.buffer).setUint16(4, 2, true);
 assert.throws(() => parseEnvelope(badVersion.buffer, STREAM_IDS.rgb), /unsupported/);
 assert.throws(() => parseEnvelope(bytes.buffer.slice(0, -1), STREAM_IDS.rgb), /length/);
 assert.throws(() => parseEnvelope(bytes.buffer, STREAM_IDS.depth), /unsupported/);
+assert.equal(STREAM_IDS.right, 4);
 
 console.log("protocol fixture: PASS");

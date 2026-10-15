@@ -47,8 +47,8 @@ install_calibration() {
 }
 
 install_calibration \
-  "$ROOT/calibration/active/SN116863460.conf" \
-  "$SETTINGS/SN116863460.conf"
+  "$ROOT/calibration/active/SN117941018.conf" \
+  "$SETTINGS/SN117941018.conf"
 
 if $RESTORE_FACTORY; then
   install_calibration \

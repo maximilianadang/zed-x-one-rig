@@ -1,5 +1,8 @@
 # ROS 2 Verification Record
 
+Historical verification of the July configuration. These results do not
+validate the new October calibration; see [ACTIVE_CALIBRATION.md](ACTIVE_CALIBRATION.md).
+
 Evidence captured on the reference Jetson on 2026-07-21. This record separates
 what passed locally from the acceptance work that requires a second machine or
 the field network.
@@ -78,7 +81,8 @@ SVO timestamps are selected.
 
 - before launch: physical serials `304467158` and `306605936` both
   `AVAILABLE`;
-- launch input: serial order `[304467158,306605936]`;
+- launch input: guarded camera-ID order `[1,0]`, verified as physical left
+  `306605936` and physical right `304467158`;
 - SDK result: GMSL input, HD1200 at 15 FPS, virtual serial `116863460`,
   NEURAL depth;
 - installed calibration baseline: `851.662 mm`;

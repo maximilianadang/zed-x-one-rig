@@ -3,6 +3,8 @@
 /captures/
 /recordings/
 /output/
+# Local pre-migration snapshots; canonical calibrations are tracked separately.
+/calibration/archive/
 **/__pycache__/
 *.py[cod]
 *.svo

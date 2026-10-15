@@ -1,5 +1,9 @@
 # TASKS - Native browser field viewer for the dual ZED X One rig
 
+Historical planning record: the READ below describes the July rig. The current
+October calibration and hardware contract are in `config/rig.yaml`,
+`docs/ACTIVE_CALIBRATION.md`, and `RUNBOOK.md`.
+
 Ordered, approval-gated plan for replacing the Ubuntu/RViz viewing computer
 with a self-hosted browser interface that works natively on a MacBook Pro or
 another modern computer. The Jetson remains the camera, NEURAL-depth, replay,
@@ -84,9 +88,9 @@ root at `RUNBOOK.md`.
 
 - The repository was clean at `main` commit `30c6b31`, tracking `origin/main`,
   when this planning read began.
-- Physical-left serial `304467158`, physical-right serial `306605936`, virtual
-  serial `116863460`, and the installed virtual calibration remain the fixed
-  rig identity.
+- Physical-left serial `306605936` (guarded ID 1/port 2), physical-right
+  serial `304467158` (guarded ID 0/port 1), virtual serial `116863460`, and the
+  installed virtual calibration remain the fixed rig identity.
 - `scripts/start_ros2_virtual_stereo.sh` is the only intended live camera
   owner. It opens the calibrated virtual pair at HD1200/15 FPS with NEURAL
   depth and refuses known competing camera owners.

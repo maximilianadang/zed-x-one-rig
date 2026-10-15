@@ -178,8 +178,9 @@ is preferred after the Mars/MarsLink topology is finalized.
 
 ## Recording contract
 
-- Native file: virtual stereo serial `116863460`, 1920x1200, 15 FPS.
-- Left: physical serial `304467158`; right: `306605936`.
+- Native file: virtual stereo serial `117941018`, 1920x1200, 15 FPS.
+- Left: physical serial `306605936`, guarded ID 1/port 2; right:
+  `304467158`, guarded ID 0/port 1.
 - Compression: generic SDK lossless PNG/ZSTD only.
 - Location: `/home/dusty/Videos/ZED/virtual_stereo_YYYYMMDD_HHMMSS.svo2`.
 - Temporary active name: the same basename ending in `.recording.svo2`.

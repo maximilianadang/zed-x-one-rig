@@ -2,6 +2,8 @@
 set -uo pipefail
 
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck disable=SC1091
+source "$ROOT/config/rig.env"
 failures=0
 warnings=0
 
@@ -48,8 +50,8 @@ check_hash() {
   if [[ "$actual" == "$expected" ]]; then pass "checksum: $path"; else fail "checksum mismatch: $path"; fi
 }
 
-check_hash 0502a05ec12942b4f02c375793c1200c6bec1387b4368c744121cbf61da19ed6 \
-  /usr/local/zed/settings/SN116863460.conf
+check_hash 02f32f76dfce5dd99410f8e30983a98037cd3fde53557f675ccec92d9d7d38fe \
+  /usr/local/zed/settings/SN117941018.conf
 check_hash 36e7f85dc121013f13baf377b6c84bf5f90be3d9af159af2392a4ac49434cb23 \
   /usr/local/zed/settings/SN304467158.conf
 check_hash 65b210cf9c18a7720a9ba1ef6086bf23f13743bb54644bcf4733931f976b1931 \
@@ -59,13 +61,35 @@ echo
 echo "Camera enumeration:"
 explorer="$(ZED_Explorer --all 2>&1)"
 printf '%s\n' "$explorer"
-for serial in 304467158 306605936; do
+for serial in "$LEFT_SERIAL" "$RIGHT_SERIAL"; do
   if grep -A3 "S/N :  $serial" <<<"$explorer" | grep -q 'State :  "AVAILABLE"'; then
     pass "camera $serial available"
   elif grep -q "S/N :  $serial" <<<"$explorer"; then
     warn "camera $serial detected but currently held/unavailable"
   else
     fail "camera $serial not detected"
+  fi
+done
+for role in left right; do
+  if [[ "$role" == left ]]; then
+    serial="$LEFT_SERIAL"
+    camera_id="$LEFT_CAMERA_ID"
+    port="$LEFT_PORT"
+    i2c_path="$LEFT_I2C_PATH"
+  else
+    serial="$RIGHT_SERIAL"
+    camera_id="$RIGHT_CAMERA_ID"
+    port="$RIGHT_PORT"
+    i2c_path="$RIGHT_I2C_PATH"
+  fi
+  block="$(grep -A6 "S/N :  $serial" <<<"$explorer" || true)"
+  if [[ -n "$block" ]] &&
+     grep -Fq "Path :  $i2c_path" <<<"$block" &&
+     grep -Fq "ID :  $camera_id" <<<"$block" &&
+     grep -Fq "Port :  $port" <<<"$block"; then
+    pass "physical $role identity: serial $serial, ID $camera_id, port $port, $i2c_path"
+  else
+    fail "physical $role identity differs from config/rig.env"
   fi
 done
 

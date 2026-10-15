@@ -329,9 +329,9 @@ ssh_preflight() {
   echo "  Remote host: ${remote_host:-unknown}"
   echo "  Remote IPs:  ${remote_addresses:-not reported}"
 
-  if ! output="$(remote_shell test -r /usr/local/zed/settings/SN116863460.conf 2>&1)"; then
+  if ! output="$(remote_shell test -r /usr/local/zed/settings/SN117941018.conf 2>&1)"; then
     printf '%s\n' "$output" >&2
-    die "SSH reached $remote_host, but it is not the configured ZED rig Jetson (SN116863460 calibration is absent)"
+    die "SSH reached $remote_host, but it is not the configured ZED rig Jetson (SN117941018 calibration is absent)"
   fi
 
   if ! output="$(remote_shell test -x "$REMOTE_ROOT/scripts/zed_field_session.sh" 2>&1)"; then

@@ -13,9 +13,10 @@ and the colored point cloud in RViz2 without the ZED SDK or CUDA.
 | Wrapper | Stereolabs `v5.4.0`, commit `6545933af94d70922881654e6fb29d95e3a8f14f` |
 | DDS | Cyclone DDS |
 | ROS domain | `42` |
-| Left camera | `304467158` |
-| Right camera | `306605936` |
-| Virtual serial | `116863460` |
+| Left camera | `306605936`, guarded ID 1 / port 2 |
+| Right camera | `304467158`, guarded ID 0 / port 1 |
+| Virtual serial | `117941018` |
+| Live input | camera IDs `[1,0]`, identity-checked before open |
 | Native acquisition | HD1200, 1920x1200 at 15 FPS |
 | Depth mode | NEURAL |
 | Field image/depth publication | 960x600 at 5 FPS |
@@ -190,7 +191,7 @@ shutdown. Right Arrow processes the next frame sequentially without seeking;
 backward and timed scrubbing are disabled. Press `o` during replay to browse
 and switch datasets without leaving the console.
 The launcher validates the SVO2 with `ZED_SVO_Editor -inf` and refuses files
-with no indexed frames or a virtual serial other than `116863460`.
+with no indexed frames or a virtual serial other than `117941018`.
 
 The remote workstation does not need the proprietary `.svo2` codec because it
 receives standard ROS image, depth, and point-cloud messages. Opening the raw

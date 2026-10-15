@@ -39,7 +39,7 @@ zed_ros_source_environment() {
 
 zed_ros_check_calibration() {
   local calibration="/usr/local/zed/settings/SN${VIRTUAL_SERIAL}.conf"
-  local expected="0502a05ec12942b4f02c375793c1200c6bec1387b4368c744121cbf61da19ed6"
+  local expected="02f32f76dfce5dd99410f8e30983a98037cd3fde53557f675ccec92d9d7d38fe"
   local actual
 
   if [[ ! -r "$calibration" ]]; then
@@ -53,6 +53,47 @@ zed_ros_check_calibration() {
     echo "Actual:   $actual" >&2
     return 1
   fi
+}
+
+zed_ros_check_hardware_identity() {
+  local require_available="${1:-false}"
+  local explorer role serial camera_id port i2c_path block
+  explorer="$(ZED_Explorer --all 2>&1)" || {
+    echo "Could not read the ZED hardware inventory." >&2
+    printf '%s\n' "$explorer" >&2
+    return 1
+  }
+
+  for role in left right; do
+    if [[ "$role" == left ]]; then
+      serial="$LEFT_SERIAL"
+      camera_id="$LEFT_CAMERA_ID"
+      port="$LEFT_PORT"
+      i2c_path="$LEFT_I2C_PATH"
+    else
+      serial="$RIGHT_SERIAL"
+      camera_id="$RIGHT_CAMERA_ID"
+      port="$RIGHT_PORT"
+      i2c_path="$RIGHT_I2C_PATH"
+    fi
+
+    block="$(grep -A6 "S/N :  $serial" <<<"$explorer" || true)"
+    if [[ -z "$block" ]] ||
+       ! grep -Fq "Path :  $i2c_path" <<<"$block" ||
+       ! grep -Fq "ID :  $camera_id" <<<"$block" ||
+       ! grep -Fq "Port :  $port" <<<"$block"; then
+      echo "Physical $role camera identity mismatch." >&2
+      echo "Expected: serial=$serial path=$i2c_path id=$camera_id port=$port" >&2
+      printf '%s\n' "$explorer" >&2
+      return 1
+    fi
+    if [[ "$require_available" == true ]] &&
+       ! grep -Fq 'State :  "AVAILABLE"' <<<"$block"; then
+      echo "Physical $role camera is not AVAILABLE:" >&2
+      printf '%s\n' "$block" >&2
+      return 1
+    fi
+  done
 }
 
 zed_ros_camera_owners() {

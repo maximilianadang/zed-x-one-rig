@@ -178,7 +178,7 @@ else
   kill -0 "$tunnel_pid" 2>/dev/null || die "SSH tunnel exited before becoming ready"
 fi
 
-url="http://127.0.0.1:$LOCAL_PORT/?mode=$MODE&token=$web_token"
+url="http://127.0.0.1:$LOCAL_PORT/?mode=$MODE#token=$web_token"
 echo
 echo "Viewer ready:"
 echo "  $url"

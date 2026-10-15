@@ -190,6 +190,7 @@ if (typeof self !== "undefined") {
           width: decoded.width,
           height: decoded.height,
           pixels: decoded.pixels.buffer,
+          depth: decoded.depth.buffer,
           low: decoded.low,
           high: decoded.high,
           valid: decoded.valid,
@@ -197,7 +198,7 @@ if (typeof self !== "undefined") {
           quantB: decoded.quantB,
           compressionFormat: decoded.compressionFormat,
         },
-        [decoded.pixels.buffer],
+        [decoded.pixels.buffer, decoded.depth.buffer],
       );
     } catch (error) {
       self.postMessage({ id, error: error instanceof Error ? error.message : String(error) });

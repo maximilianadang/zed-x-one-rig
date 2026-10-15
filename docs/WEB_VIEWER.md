@@ -3,7 +3,7 @@
 This is the additive, no-VNC browser interface for the exact calibrated dual
 ZED X One rig. The Jetson continues to own the cameras, run ZED NEURAL depth,
 and write lossless SVO2. A MacBook or Linux workstation only decodes and
-renders the already-compressed preview through an SSH tunnel.
+renders the compact preview through an SSH tunnel.
 
 The existing Ubuntu/RViz procedure remains installed and is the rollback path
 in root [RUNBOOK.md](../RUNBOOK.md).
@@ -12,16 +12,23 @@ in root [RUNBOOK.md](../RUNBOOK.md).
 
 | Product | Source and rate |
 |---|---|
-| Rectified RGB | Original ROS JPEG, 960x600 at 5 Hz |
+| Rectified left RGB | Original ROS JPEG, 960x600 at 5 Hz |
+| Rectified right RGB | Original ROS JPEG, 960x600 at 5 Hz |
 | Registered depth | Original ROS compressed-depth payload, 960x600 at 5 Hz |
-| Colored point cloud | Original ROS Draco payload, reduced cloud at 2 Hz |
+| Colored point cloud | Finite ROS cloud samples, packed XYZ/RGB at 2 Hz |
 | Lossless recording | Jetson-local synchronized SVO2, 1920x1200 at 15 FPS |
 | Depth computation | ZED SDK `NEURAL` on the Jetson |
 | Browser fixed frame | `zed_camera_link`, X forward, Y left, Z up |
 
-The browser path does not re-encode the preview and does not change
-`field.yaml`, `outdoor.yaml`, calibration, serial order, acquisition, depth
-mode, or recording compression.
+Hover over the registered-depth pane to read its metric Z depth at that pixel.
+Hover over a rendered cloud point to read Euclidean range plus X-forward,
+Y-left, and Z-up coordinates in `zed_camera_link`. The selected rendered point
+is marked yellow. The cloud title also reports the nearest point in each frame.
+
+The browser path does not re-encode either camera view or depth. The gateway only removes
+non-finite cloud samples and repacks each remaining XYZ/RGB point; it does not
+alter coordinates or colors. It does not change
+calibration, serial order, acquisition, depth mode, or recording compression.
 
 Browser sessions launch both the ZED wrapper/replay and gateway with
 `config/ros2/cyclonedds-loopback.xml`. DDS discovery and payloads therefore
@@ -37,9 +44,10 @@ but already had `rclcpp`, the exact ROS messages, and Boost.Beast. The shipped
 gateway therefore:
 
 - adds no system package or field runtime;
-- forwards the original compressed bytes without CBOR conversion;
-- creates one depth, RGB, and cloud subscription only while its authenticated
-  WebSocket is attached;
+- forwards original compressed left/right RGB and depth without CBOR conversion and compacts
+  the small reduced cloud into a portable 16-byte-per-point stream;
+- creates one depth, left RGB, right RGB, and cloud subscription only while its
+  authenticated WebSocket is attached;
 - uses a latest-only ROS queue and a separate socket per stream;
 - binds only to `127.0.0.1`;
 - exposes only fixed existing session-helper operations.
@@ -74,8 +82,8 @@ Expected: `Linger=yes`.
 
 The viewing computer may run current macOS or Linux. It needs:
 
-- a current Safari, Chromium, Chrome, Firefox, or Edge with WebAssembly,
-  WebGL2, Web Workers, and `DecompressionStream("deflate")`;
+- a current Safari, Chromium, Chrome, Firefox, or Edge with WebGL2, Web Workers,
+  and `DecompressionStream("deflate")`;
 - OpenSSH;
 - this repository's scripts;
 - noninteractive SSH key access to the Jetson.
@@ -83,9 +91,7 @@ The viewing computer may run current macOS or Linux. It needs:
 It does **not** need Ubuntu, ROS, DDS, RViz, ZED SDK, CUDA, VNC, Node, npm, a
 cloud account, a branded viewer, or internet access.
 
-The gateway Content Security Policy permits `wasm-unsafe-eval` solely so the
-pinned offline Draco decoder can compile its WebAssembly module. General
-JavaScript `unsafe-eval` remains disabled.
+The browser cloud path does not require WebAssembly or `unsafe-eval`.
 
 ## One-time MacBook setup
 
@@ -206,6 +212,27 @@ The interface opens **view-only**. For the sky-heavy exposure profile:
 The browser must show `PROFILE STANDARD` or `PROFILE OUTDOOR`. Outdoor changes
 only the approved exposure behavior.
 
+### Direct Ethernet launch
+
+The field hardline uses an isolated, no-default-route subnet so Wi-Fi remains
+available but carries none of the browser payload:
+
+- Jetson `eno1`: `10.77.0.1/24`;
+- workstation Ethernet: `10.77.0.2/24`;
+- no Ethernet gateway or DNS.
+
+Launch with the numeric address to force the SSH tunnel over Ethernet:
+
+```bash
+./scripts/zed_web_console.sh \
+  --jetson dusty@10.77.0.1 \
+  --remote-root /home/dusty/workspace/terraforming_mars/zed-x-one-rig
+```
+
+`ip route get 10.77.0.1` on Linux must report the wired interface with source
+`10.77.0.2`. Browser sessions retain loopback-only DDS on the Jetson; the SSH
+tunnel is the only preview path across the cable.
+
 If automatic browser opening is unavailable:
 
 ```bash
@@ -215,16 +242,18 @@ If automatic browser opening is unavailable:
   --no-open
 ```
 
-Copy the printed loopback URL into the local browser. The token is temporary,
-is removed from visible browser history after load, and is retained only in
-that tab's session storage so a refresh works. It is not stored in the
-repository or in persistent browser storage.
+Copy the printed loopback URL into the local browser. The temporary token is
+kept in the URL fragment so refreshing the same tab reconnects even when
+browser session storage is unavailable. Fragments are not sent with ordinary
+HTTP requests. The token is not stored in the repository or persistent browser
+storage.
 
 ## Browser layout and controls
 
 The fixed layout contains:
 
 - rectified left RGB;
+- rectified right RGB;
 - registered left-frame metric depth, using RViz's five-frame
   median-normalized grayscale;
 - the colored cloud in `zed_camera_link` with an XY grid and one-metre axes;

@@ -8,15 +8,17 @@ cameras remain rigid in the pose used during calibration.
 
 - NVIDIA Jetson Orin Nano developer kit.
 - ZED Link Capture Duo.
-- ZED X One GS SN `304467158` is the calibrated **left** camera.
-- ZED X One GS SN `306605936` is the calibrated **right** camera.
-- Both cameras must be rigidly mounted, approximately 851.8 mm apart.
-- Identify cameras by serial number, never by changing Explorer ID.
+- ZED X One GS SN `306605936`, ID 1, port 2 is the physical **left** camera.
+- ZED X One GS SN `304467158`, ID 0, port 1 is the physical **right** camera.
+- Both cameras must preserve the calibrated mounting, approximately 244.4 mm
+  apart. Changing their relative pose requires recalibration.
+- Identify cameras by serial number and require the saved ID/port/path binding.
 
-On the captured configuration, SN `304467158` enumerated on capture port 1 and
-SN `306605936` on port 2. If physical camera placement and serial assignment do
-not agree with the calibrated left/right order, depth will be wrong even when
-both cameras enumerate successfully.
+The operational virtual camera opens the saved camera-ID order `[1,0]` while
+retaining calibrated virtual serial `117941018`. Startup cross-checks each ID
+against its serial, GMSL port, and I2C path and fails closed if any property
+changes. This guard is required because the SDK 5.4 serial-pair path was
+observed publishing the two physical viewpoints in reverse.
 
 Power the Jetson and Capture Duo off completely before connecting, reseating,
 or moving GMSL/ribbon connections. Do not hot-plug while Argus is active.
@@ -65,7 +67,8 @@ SN 306605936  AVAILABLE  /dev/i2c-10 ID 1  Port 2
 ```
 
 `NOT AVAILABLE` normally means another process has a camera open. Serial
-numbers and calibrated left/right order matter; IDs are not stable.
+numbers are authoritative; the complete fixed ID/port/path binding must match
+`config/rig.env`.
 
 ## 4. Build and install
 
@@ -77,8 +80,8 @@ numbers and calibrated left/right order matter; IDs are not stable.
 The install script:
 
 1. Builds the custom recorder and vendored upstream calibration tools.
-2. Backs up and installs `calibration/active/SN116863460.conf` into
-   `/usr/local/zed/settings/SN116863460.conf`.
+2. Backs up and installs `calibration/active/SN117941018.conf` into
+   `/usr/local/zed/settings/SN117941018.conf`.
 3. Installs desktop launchers with this repository's actual path.
 4. Does not restart Argus or ZED services.
 
@@ -95,13 +98,13 @@ up before replacement.
 ## 5. Confirm the installed calibration
 
 ```bash
-sha256sum /usr/local/zed/settings/SN116863460.conf
+sha256sum /usr/local/zed/settings/SN117941018.conf
 ```
 
 Expected:
 
 ```text
-0502a05ec12942b4f02c375793c1200c6bec1387b4368c744121cbf61da19ed6
+02f32f76dfce5dd99410f8e30983a98037cd3fde53557f675ccec92d9d7d38fe
 ```
 
 Run `./scripts/verify_setup.sh` again after installation.

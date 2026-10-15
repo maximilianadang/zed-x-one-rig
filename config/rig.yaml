@@ -1,4 +1,4 @@
-snapshot_date: 2026-07-17
+snapshot_date: 2026-10-14
 host:
   model: NVIDIA Jetson Orin Nano Engineering Reference Developer Kit Super
   architecture: aarch64
@@ -13,31 +13,29 @@ capture:
 cameras:
   left:
     model: ZED X One GS
-    serial: 304467158
-    observed_i2c: /dev/i2c-9
-    observed_id: 0
-    observed_port: 1
-  right:
-    model: ZED X One GS
     serial: 306605936
     observed_i2c: /dev/i2c-10
     observed_id: 1
     observed_port: 2
+  right:
+    model: ZED X One GS
+    serial: 304467158
+    observed_i2c: /dev/i2c-9
+    observed_id: 0
+    observed_port: 1
 virtual_stereo:
-  serial: 116863460
+  serial: 117941018
+  input_mode: camera_ids
+  left_camera_id: 1
+  right_camera_id: 0
+  identity_guard: serial_id_port_and_i2c_path
   width: 1920
   height: 1200
   fps: 15
   media_server_port: 34000
 calibration:
   checkerboard_inner_corners: [9, 6]
-  square_size_mm: 93.0
-  captured_pairs: 15
-  detected_pairs: 13
-  rejected_outliers: 1
-  used_pairs: 12
-  baseline_mm: 851.810
-  reprojection_rms_px:
-    left: 0.14
-    right: 0.14
-    stereo: 0.20
+  square_size_mm: 28.0
+  baseline_mm: 244.410
+  source_session: 1792023751877379356
+  validation: pending_known_distance_live_check

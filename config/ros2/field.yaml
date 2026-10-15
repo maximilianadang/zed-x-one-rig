@@ -21,7 +21,8 @@
     video:
       enable_24bit_output: true
       publish_rgb: true
-      publish_left_right: false
+      # Publish both rectified views for the hardwired browser viewer.
+      publish_left_right: true
       publish_raw: false
       publish_gray: false
       publish_stereo: false
@@ -36,9 +37,17 @@
 
     depth:
       depth_mode: 'NEURAL'
+      # Preserve the field profile's long-range ceiling after recalibration.
+      # The virtual-camera default of 10 m discards the distant scene.
+      max_depth: 100.0
       # The rig is stationary and does not publish pose. Leaving the SDK
       # default (-1) silently forces positional tracking back on.
       depth_stabilization: 0
+      # ZED confidence is an error score: 0 is best and 100 is worst.
+      # Threshold 99 retains uncertain matches but rejects the pathological
+      # lowest-confidence bin that more than doubles noisy returns at 100.
+      depth_confidence: 99
+      depth_texture_conf: 100
       point_cloud_freq: 2.0
       point_cloud_res: 'REDUCED'
       publish_depth_map: true

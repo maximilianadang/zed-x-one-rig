@@ -46,6 +46,10 @@ while (($#)); do
 done
 
 [[ -r "$PROFILE" ]] || { echo "Missing ROS profile: $PROFILE" >&2; exit 1; }
+[[ "$VIRTUAL_INPUT_MODE" == camera_ids ]] || {
+  echo "Unsupported virtual input mode in config/rig.env: $VIRTUAL_INPUT_MODE" >&2
+  exit 1
+}
 zed_ros_check_calibration
 zed_ros_source_environment
 zed_ros_require_no_owner
@@ -54,7 +58,8 @@ command=(
   ros2 launch zed_wrapper zed_camera.launch.py
   camera_model:=virtual
   camera_name:=zed
-  "serial_numbers:=[$LEFT_SERIAL,$RIGHT_SERIAL]"
+  "serial_numbers:=[]"
+  "camera_ids:=[$LEFT_CAMERA_ID,$RIGHT_CAMERA_ID]"
   "ros_params_override_path:=$PROFILE"
   publish_urdf:=true
   publish_tf:=false
@@ -72,19 +77,11 @@ if $DRY_RUN; then
   exit 0
 fi
 
-explorer="$(ZED_Explorer --all 2>&1)"
-for serial in "$LEFT_SERIAL" "$RIGHT_SERIAL"; do
-  block="$(grep -A4 "S/N :  $serial" <<<"$explorer" || true)"
-  if [[ -z "$block" ]] || ! grep -q 'State :  "AVAILABLE"' <<<"$block"; then
-    echo "Camera $serial is not AVAILABLE:" >&2
-    printf '%s\n' "$block" >&2
-    exit 1
-  fi
-done
+zed_ros_check_hardware_identity true
 
 echo "Starting ROS 2 calibrated virtual stereo"
-echo "  Left:        $LEFT_SERIAL"
-echo "  Right:       $RIGHT_SERIAL"
+echo "  Left:        $LEFT_SERIAL (ID $LEFT_CAMERA_ID, port $LEFT_PORT)"
+echo "  Right:       $RIGHT_SERIAL (ID $RIGHT_CAMERA_ID, port $RIGHT_PORT)"
 echo "  Virtual:     $VIRTUAL_SERIAL"
 echo "  Native:      ${WIDTH}x${HEIGHT} @ ${FPS} FPS"
 echo "  Depth:       NEURAL"

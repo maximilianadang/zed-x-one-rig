@@ -446,7 +446,7 @@ ssh_preflight() {
   echo "SSH connected"
   echo "  Remote host: ${remote_host:-unknown}"
   echo "  Remote IPs:  ${remote_addresses:-not reported}"
-  remote_shell test -r /usr/local/zed/settings/SN116863460.conf 2>/dev/null || \
+  remote_shell test -r /usr/local/zed/settings/SN117941018.conf 2>/dev/null || \
     die "SSH target lacks the rig's virtual calibration"
   remote_shell test -x "$REMOTE_ROOT/scripts/zed_replay_session.sh" 2>/dev/null || \
     die "Jetson replay helper is missing or not executable under $REMOTE_ROOT"
