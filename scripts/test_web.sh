@@ -10,6 +10,9 @@ cleanup() {
 }
 trap cleanup EXIT
 
+bash -n "$ROOT/scripts/zed_web_console.sh"
+python3 "$ROOT/tests/web/test_web_console.py"
+
 command -v "$NODE" >/dev/null 2>&1 || {
   echo "Node.js is needed only for development tests; it is not a field dependency." >&2
   echo "Set NODE=/path/to/node and retry." >&2

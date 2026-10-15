@@ -164,6 +164,27 @@ address.
 
 ## Live launch
 
+On the Jetson's own desktop, use the same dashboard without SSH:
+
+```bash
+cd /home/dusty/workspace/terraforming_mars/zed-x-one-rig
+./scripts/zed_web_console.sh --local
+```
+
+Run as your normal desktop user (no `sudo`). This starts or attaches to the
+local session and opens the authenticated loopback URL in your browser.
+No SSH alias, key, tunnel, or network connection is required. The same camera
+profiles, calibration checks, stream quality, and recording controls apply.
+Browser rendering now uses the Jetson's resources instead of a workstation's.
+
+Use `--local --outdoor` for the outdoor live profile, `--local --replay` for
+the newest dataset, or `--local --index 2` for the second-newest dataset.
+Add `--no-open` to print the URL without opening a browser. Local mode returns
+to the prompt while the session continues. Closing the browser does **not**
+finalize recording or stop cameras: use Stop/Save and the safe stop control.
+Do not combine `--local` with `--jetson`, `--remote-root`, or `--local-port`;
+the gateway's reported port is used directly.
+
 On the Mac/Linux viewing computer:
 
 ```bash

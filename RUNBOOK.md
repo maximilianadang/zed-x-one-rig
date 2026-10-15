@@ -52,6 +52,23 @@ the synchronized native frames retained in SVO2.
 
 ## Before field deployment
 
+### Dashboard on the Jetson's own screen
+
+No SSH or second computer is needed. Run as your normal desktop user:
+
+```bash
+cd /home/dusty/workspace/terraforming_mars/zed-x-one-rig
+./scripts/zed_web_console.sh --local
+```
+
+Add `--replay` for recorded datasets or `--outdoor` for the outdoor live
+profile. The same dashboard and recording controls open in the local browser.
+The launcher returns to the prompt; closing the browser does not stop a
+session or recording. Use Stop/Save and safe stop before switching camera tools.
+See [WEB_VIEWER.md](docs/WEB_VIEWER.md) for all local/remote options.
+
+### Deployment checks
+
 Update the repository on both the Jetson and Ubuntu workstation while internet
 is available, and confirm that both report the same revision:
 
